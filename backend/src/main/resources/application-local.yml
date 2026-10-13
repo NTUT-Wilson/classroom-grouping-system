@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://127.0.0.1:5433/classroom_grouping}
+    username: ${DATABASE_USERNAME:classroom_local}
+    password: ${DATABASE_PASSWORD:local-development-only}
+server:
+  address: 127.0.0.1
+  servlet:
+    session:
+      cookie:
+        secure: false

@@ -1,0 +1,38 @@
+name: classroom-grouping-foundation
+services:
+  db:
+    image: postgres:17@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3
+    environment:
+      POSTGRES_DB: classroom_grouping
+      POSTGRES_USER: classroom_local
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-local-development-only}
+    ports:
+      - '127.0.0.1:${LOCAL_DATABASE_PORT:-5433}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U classroom_local -d classroom_grouping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  app:
+    profiles: [app]
+    build: .
+    image: classroom-grouping:foundation
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:${LOCAL_APP_PORT:-8080}:8080'
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SERVER_ADDRESS: 0.0.0.0
+      DATABASE_URL: jdbc:postgresql://db:5432/classroom_grouping
+      DATABASE_USERNAME: classroom_local
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-local-development-only}
+      APP_DEMO_ENABLED: ${APP_DEMO_ENABLED:-false}
+      DEMO_USERNAME: ${DEMO_USERNAME:-}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-}
+      SCHEDULER_SECRET: ${SCHEDULER_SECRET:-}
+volumes:
+  postgres-data:

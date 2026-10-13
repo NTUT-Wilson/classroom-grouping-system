@@ -1,0 +1,66 @@
+name: Foundation verification
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3
+        env:
+          POSTGRES_DB: classroom_grouping
+          POSTGRES_USER: classroom_local
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd 'pg_isready -U classroom_local -d classroom_grouping'
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Frontend install, tests and build
+        working-directory: frontend
+        run: |
+          npm ci --no-fund
+          npm test
+          npm run build
+      - name: Backend integration, security, architecture tests and packaging
+        working-directory: backend
+        run: |
+          chmod +x mvnw
+          ./mvnw -B -ntp verify
+      - name: Browser prerequisites
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Real-backend browser smoke test
+        env:
+          DATABASE_URL: jdbc:postgresql://127.0.0.1:5432/classroom_grouping
+          DATABASE_USERNAME: classroom_local
+          DATABASE_PASSWORD: ci-only-password
+          DEMO_USERNAME: ci-demo
+          DEMO_PASSWORD: ci-only-foundation-password
+        run: |
+          java -jar backend/target/classroom-grouping-0.0.1-SNAPSHOT.jar --spring.profiles.active=local --app.demo.enabled=true > backend/target/browser-backend.log 2>&1 &
+          APP_PID=$!
+          trap 'kill "$APP_PID"' EXIT
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8080/actuator/health > /dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:8080/actuator/health
+          cd frontend
+          npm run test:e2e
+      - name: Verify single application image
+        run: docker build --tag classroom-grouping:ci .

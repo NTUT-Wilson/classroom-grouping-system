@@ -1,0 +1,16 @@
+.tools/
+.cache/
+.env
+.env.*
+!.env.example
+**/target/
+**/node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+*.log
+*.tsbuildinfo
+.idea/
+.vscode/
+repomix-output.md

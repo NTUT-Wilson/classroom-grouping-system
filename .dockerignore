@@ -1,0 +1,10 @@
+.git
+.tools
+.cache
+**/node_modules
+**/target
+frontend/test-results
+frontend/playwright-report
+.env
+.env.*
+repomix-output.md

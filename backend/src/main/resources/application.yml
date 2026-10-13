@@ -1,0 +1,65 @@
+spring:
+  application:
+    name: classroom-grouping
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 0
+      keepalive-time: 0
+      connection-timeout: 10000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    clean-disabled: true
+  sql:
+    init:
+      mode: never
+  session:
+    timeout: 30m
+    jdbc:
+      initialize-schema: never
+      cleanup-cron: '0 0 * * * *'
+  mvc:
+    problemdetails:
+      enabled: true
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+  servlet:
+    session:
+      cookie:
+        secure: true
+        http-only: true
+        same-site: lax
+logging:
+  structured:
+    format:
+      console: ecs
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+  health:
+    db:
+      enabled: false
+app:
+  scheduler:
+    secret: ${SCHEDULER_SECRET:}
+    enabled: false
+    interval-ms: 60000
+  demo:
+    enabled: false
+    username: ${DEMO_USERNAME:}
+    password: ${DEMO_PASSWORD:}
