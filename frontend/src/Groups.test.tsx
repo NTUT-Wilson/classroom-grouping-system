@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { Groups } from './Groups'
 import * as api from './api'
-vi.mock('./api', async importOriginal => ({ ...await importOriginal<typeof api>(), getGrouping: vi.fn(), joinEmptyGroup: vi.fn() }))
+vi.mock('./api', async importOriginal => ({ ...await importOriginal<typeof api>(), getGrouping: vi.fn(), getApplications: vi.fn(), applyToGroup: vi.fn(), joinEmptyGroup: vi.fn() }))
 const course = { id: 'course-one', code: 'C1', name: 'Computing' }
 const own = { accountId: 'own', studentId: '00001', studentName: 'Alex', aboutMe: 'Current own text' }
 const peer = { accountId: 'peer', studentId: '00002', studentName: '陳 <Mina>', aboutMe: '<script>literal</script>\nCurrent introduction' }
@@ -11,7 +11,7 @@ const empty = { id: 'g1', name: 'Group 1', capacity: 2, availablePlaces: 2, mana
 const open: api.GroupDiscovery = { activityId: 'activity', status: 'OPEN', ownGroupId: null, groups: [empty, { id: 'g2', name: 'Group 2', capacity: 2, availablePlaces: 1, manager: peer, members: [peer] }] }
 const joined: api.GroupDiscovery = { ...open, ownGroupId: 'g1', groups: [{ ...empty, availablePlaces: 1, manager: own, members: [own] }, open.groups[1]] }
 beforeEach(() => {
-  vi.resetAllMocks(); vi.mocked(api.getGrouping).mockResolvedValue(open); vi.mocked(api.joinEmptyGroup).mockResolvedValue(joined)
+  vi.resetAllMocks(); vi.mocked(api.getApplications).mockResolvedValue({ activityId: 'activity', status: 'OPEN', items: [], nextCursor: null }); vi.mocked(api.getGrouping).mockResolvedValue(open); vi.mocked(api.joinEmptyGroup).mockResolvedValue(joined)
   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value() { this.setAttribute('open', ''); this.querySelector('button')?.focus() } })
 })
 function mount() { return render(<Groups course={course} accountId="own" expired={vi.fn()} />) }
@@ -29,8 +29,8 @@ test('shows permitted current membership/profile fields as text and exposes only
   expect(within(occupied).getByText(/<script>literal/)).toBeInTheDocument()
   expect(container.querySelector('script')).toBeNull()
   expect(within(occupied).getByText('Manager')).toBeInTheDocument()
-  expect(within(occupied).queryByRole('button')).not.toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: /apply|invite/i })).not.toBeInTheDocument()
+  expect(within(occupied).getByRole('button', { name: 'Apply to Group 2' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /invite/i })).not.toBeInTheDocument()
 })
 
 test('joining needs deliberate confirmation; cancel restores focus and successful membership removes join controls', async () => {
@@ -139,4 +139,50 @@ test('late successful join cannot display old-course membership after navigation
   await act(async () => { finish(joined) })
   expect(screen.queryByText('Your join was confirmed.')).not.toBeInTheDocument()
   expect(screen.queryByText(own.studentName)).not.toBeInTheDocument()
+})
+
+
+test('application is deliberate, reserves no place and hides known pending resubmission', async () => {
+  vi.mocked(api.applyToGroup).mockResolvedValue({ activityId: 'activity', status: 'OPEN', items: [{ id: 'a', groupId: 'g2', groupName: 'Group 2', applicant: own, manager: peer, status: 'PENDING', reason: null, createdAt: '2026-10-15T04:00:00Z' }], nextCursor: null })
+  const user = userEvent.setup(); mount()
+  await user.click(await screen.findByRole('button', { name: 'Apply to Group 2' }))
+  expect(screen.getByRole('dialog')).toHaveTextContent('does not join the group or reserve a place')
+  expect(api.applyToGroup).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: 'Cancel' }))
+  expect(screen.getByRole('button', { name: 'Apply to Group 2' })).toHaveFocus()
+  await user.click(screen.getByRole('button', { name: 'Apply to Group 2' }))
+  await user.click(screen.getByRole('button', { name: 'Confirm application' }))
+  expect(await screen.findByRole('status')).toHaveTextContent('Application recorded. It reserves no place.')
+  expect(screen.getByText(/Application pending/)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Apply to Group 2' })).not.toBeInTheDocument()
+  expect(screen.getByText('1 available / 2 places')).toBeInTheDocument()
+  expect(api.joinEmptyGroup).not.toHaveBeenCalled()
+})
+
+test('application lost response requires both history and groups, never automatic replay', async () => {
+  vi.mocked(api.applyToGroup).mockRejectedValueOnce(new TypeError('lost'))
+  const user = userEvent.setup(); mount()
+  await user.click(await screen.findByRole('button', { name: 'Apply to Group 2' }))
+  await user.click(screen.getByRole('button', { name: 'Confirm application' }))
+  await screen.findByText('Check groups before continuing')
+  vi.mocked(api.getApplications).mockRejectedValueOnce(new Error('history offline'))
+  await user.click(screen.getByRole('button', { name: 'Check current groups' }))
+  await waitFor(() => expect(api.getApplications).toHaveBeenCalledTimes(2))
+  expect(screen.queryByRole('button', { name: 'Apply to Group 2' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Check current groups' }))
+  await screen.findByRole('button', { name: 'Apply to Group 2' })
+  expect(api.applyToGroup).toHaveBeenCalledTimes(1)
+})
+
+test('application conflict reads current state before a new explicit key can be used', async () => {
+  vi.mocked(api.applyToGroup).mockRejectedValueOnce(new api.ApiError(409, 'duplicate')).mockResolvedValue({ activityId: 'activity', status: 'OPEN', items: [], nextCursor: null })
+  const user = userEvent.setup(); mount()
+  for (let index = 0; index < 2; index++) {
+    await user.click(await screen.findByRole('button', { name: 'Apply to Group 2' }))
+    await user.click(screen.getByRole('button', { name: 'Confirm application' }))
+    await waitFor(() => expect(api.applyToGroup).toHaveBeenCalledTimes(index + 1))
+  }
+  await screen.findByText(/Application recorded/)
+  expect(api.getApplications).toHaveBeenCalledTimes(2)
+  expect(vi.mocked(api.applyToGroup).mock.calls[0][2].commandKey).not.toBe(vi.mocked(api.applyToGroup).mock.calls[1][2].commandKey)
 })

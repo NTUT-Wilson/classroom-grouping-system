@@ -76,9 +76,13 @@ jobs:
           E2E_BASE_URL: http://127.0.0.1:8081
         run: |
           docker build --tag classroom-grouping:ci .
+          # Browser creation stories require a fresh disposable database for each artifact.
+          # Preserve the packaged-jar run's activities and history rather than resetting them.
+          docker exec '${{ job.services.postgres.id }}' psql -U classroom_local -d classroom_grouping \
+            -v ON_ERROR_STOP=1 -c 'CREATE DATABASE classroom_grouping_image'
           CONTAINER=$(docker run --rm -d --network host --memory=512m \
             -e SPRING_PROFILES_ACTIVE=local -e SERVER_ADDRESS=127.0.0.1 -e PORT=8081 \
-            -e DATABASE_URL=jdbc:postgresql://127.0.0.1:5432/classroom_grouping \
+            -e DATABASE_URL=jdbc:postgresql://127.0.0.1:5432/classroom_grouping_image \
             -e DATABASE_USERNAME=classroom_local -e DATABASE_PASSWORD=ci-only-password \
             -e APP_DEMO_ENABLED=true -e DEMO_USERNAME -e DEMO_PASSWORD \
             -e APP_ROSTER_ENABLED=true -e ROSTER_TEACHER_PASSWORD -e ROSTER_STUDENT_PASSWORD \

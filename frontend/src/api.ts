@@ -6,6 +6,25 @@ export type ActivityWorkspace = { activity: Activity | null; enrolledCount: numb
 export type CreateActivity = { commandKey: string; instructions: string; deadline: string; capacities: number[] }
 export type DiscoveryGroup = { id: string; name: string; capacity: number; availablePlaces: number; manager: Classmate | null; members: Classmate[] }
 export type GroupDiscovery = { activityId: string | null; status: 'ABSENT' | 'OPEN' | 'FINALIZING'; ownGroupId: string | null; groups: DiscoveryGroup[] }
+export type ApplicationAttempt = { id: string; groupId: string; groupName: string; applicant: Classmate; manager: Classmate; status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELED' | 'EXPIRED'; reason: string | null; createdAt: string }
+export type ApplicationPage = { activityId: string | null; status: 'ABSENT' | 'OPEN' | 'FINALIZING'; items: ApplicationAttempt[]; nextCursor: string | null }
+export function getApplications(id: string, cursor?: string): Promise<ApplicationPage> {
+  return readCourse(`/api/courses/${encodeURIComponent(id)}/applications?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`)
+}
+async function applicationCommand(url: string, command: { commandKey: string; decision?: 'APPROVE' | 'REJECT' }): Promise<ApplicationPage> {
+  if (!token) await refreshCsrf()
+  const csrf = token!
+  token = undefined
+  const response = await fetch(url, { method: 'POST', credentials: 'same-origin', headers: { [csrf.headerName]: csrf.token, 'Content-Type': 'application/json' }, body: JSON.stringify(command) })
+  if (!response.ok) throw new ApiError(response.status, 'Application action could not be confirmed. Refresh requests and groups before choosing another action.')
+  return response.json() as Promise<ApplicationPage>
+}
+export function applyToGroup(id: string, groupId: string, command: { commandKey: string }): Promise<ApplicationPage> {
+  return applicationCommand(`/api/courses/${encodeURIComponent(id)}/groups/${encodeURIComponent(groupId)}/applications`, command)
+}
+export function decideApplication(id: string, applicationId: string, command: { commandKey: string; decision: 'APPROVE' | 'REJECT' }): Promise<ApplicationPage> {
+  return applicationCommand(`/api/courses/${encodeURIComponent(id)}/applications/${encodeURIComponent(applicationId)}/decision`, command)
+}
 type CsrfToken = { headerName: string; token: string }
 let token: CsrfToken | undefined
 

@@ -6,6 +6,9 @@ public final class GroupingValidationException extends RuntimeException {
         super(switch (field) {
             case "commandKey" -> "Provide a valid command key.";
             case "fields" -> "Provide only the fields allowed for this grouping command.";
+            case "decision" -> "Choose APPROVE or REJECT.";
+            case "cursor" -> "Provide a valid history cursor for this course and account.";
+            case "limit" -> "Choose a page size between 1 and 50.";
             default -> throw new IllegalArgumentException("Unknown grouping field");
         });
         this.field = field;

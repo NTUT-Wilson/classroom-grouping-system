@@ -160,3 +160,15 @@ body { margin:0; }
 .join-explanation { margin-top:18px !important; color:#627684; }
 @media(max-width:900px) { .groups-grid { grid-template-columns:minmax(0,1fr); } }
 @media(max-width:700px) { .group-card { padding:22px; } .course-tabs { gap:24px; } }
+.requests-workspace { margin-top:28px; }
+.request-intro { color:#627684; margin-bottom:24px !important; }
+.requests-list { display:grid; gap:20px; margin-top:18px; }
+.request-card { min-width:0; padding:24px; border:1px solid #e1e8ee; background:white; border-radius:12px; overflow-wrap:anywhere; }
+.request-card h3 { margin:0; }
+.request-date,.request-party p { color:#627684; font-size:12px; }
+.request-date { margin:12px 0 20px !important; }
+.request-parties { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; border-top:1px solid #edf0f5; padding-top:16px; }
+.request-party h4 { margin:0 0 8px; }
+.request-party .profile-full-text { margin:8px 0 !important; }
+.load-older { margin-top:20px; }
+@media(max-width:700px) { .request-parties { grid-template-columns:minmax(0,1fr); gap:16px; } .request-card { padding:22px; } .course-tabs { gap:20px; flex-wrap:wrap; } }

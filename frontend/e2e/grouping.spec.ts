@@ -92,7 +92,11 @@ test('deliberate joining shows profiles, loses a stale empty-group race safely, 
     await stale!.getByRole('button', { name: 'Join Group 2', exact: true }).click()
     expect((await join(rival!, target.id, groups[1]!.id)).status()).toBe(200)
     let stalePosts = 0
-    stale!.on('request', request => { if (request.method() === 'POST' && request.url().includes('/api/courses/')) stalePosts++ })
+    let automaticApplications = 0
+    stale!.on('request', request => {
+      if (request.method() === 'POST' && request.url().includes('/api/courses/')) stalePosts++
+      if (request.method() === 'POST' && /\/groups\/[^/]+\/applications$/.test(request.url())) automaticApplications++
+    })
     await stale!.getByRole('button', { name: 'Confirm join', exact: true }).click()
     await expect(stale!.getByRole('alert')).toContainText('This group is no longer empty')
     await expect(stale!.getByRole('button', { name: 'Join Group 2', exact: true })).toHaveCount(0)
@@ -101,7 +105,11 @@ test('deliberate joining shows profiles, loses a stale empty-group race safely, 
     expect(lost.groups[1]!.manager!.studentId).toBe('00007003')
     await stale!.getByRole('button', { name: 'Refresh groups', exact: true }).click()
     expect(stalePosts).toBe(1)
-    await expect(stale!.getByRole('button', { name: /Apply|Invite|Leave|Remove/ })).toHaveCount(0)
+    await expect(stale!.getByRole('button', { name: 'Apply to Group 2', exact: true })).toBeVisible()
+    expect(automaticApplications).toBe(0)
+    const privateHistory = await stale!.request.get(`/api/courses/${target.id}/applications`)
+    expect(privateHistory.status()).toBe(200); expect((await privateHistory.json()).items).toEqual([])
+    await expect(stale!.getByRole('button', { name: /Invite|Leave|Remove/ })).toHaveCount(0)
 
     await openGroups(uncertain!, target.id)
     const path = `/api/courses/${target.id}/groups/${groups[2]!.id}/join`

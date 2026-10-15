@@ -8,6 +8,10 @@ public final class GroupingConflict extends RuntimeException {
             case "ALREADY_GROUPED" -> "You already belong to a group in this activity.";
             case "ACTIVITY_CLOSED" -> "Grouping has closed. Refresh to check current status.";
             case "COMMAND_KEY_REUSED" -> "This command key was already used with different input.";
+            case "GROUP_FULL" -> "This group is full.";
+            case "GROUP_NOT_MANAGED" -> "Apply to an occupied group with a manager.";
+            case "APPLICATION_PENDING" -> "You already have a pending application to this group.";
+            case "APPLICATION_NOT_PENDING" -> "This application is no longer pending.";
             default -> throw new IllegalArgumentException("Unknown grouping conflict");
         });
         this.code = code;

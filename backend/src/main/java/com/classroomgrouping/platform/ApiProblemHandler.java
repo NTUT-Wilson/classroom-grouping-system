@@ -91,7 +91,11 @@ class ApiProblemHandler {
         ProblemResponses.write(response, 401, "Authentication required", "AUTH_REQUIRED");
     }
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    void invalidIdentifier(HttpServletResponse response) throws IOException {
+    void invalidIdentifier(MethodArgumentTypeMismatchException exception, HttpServletResponse response) throws IOException {
+        if ("limit".equals(exception.getName())) {
+            invalidGrouping(new GroupingValidationException("limit"), response);
+            return;
+        }
         ProblemResponses.write(response, 404, "Course not accessible", "COURSE_NOT_ACCESSIBLE");
     }
 }

@@ -18,6 +18,13 @@ class DatabaseActivityCourseAccess implements ActivityCourseAccess {
     DatabaseActivityCourseAccess(JdbcTemplate jdbc, SessionActors actors) { this.jdbc = jdbc; this.actors = actors; }
     @Transactional(readOnly = true)
     public Access read(Principal principal, UUID courseId) { return authorize(principal, courseId, false); }
+    @Transactional(readOnly = true)
+    public boolean isEnrolledStudent(UUID courseId, UUID accountId) {
+        // Enrollment's FK to student_identity and its account-role FK guarantee a current student role.
+        return Boolean.TRUE.equals(jdbc.queryForObject(
+                "SELECT EXISTS (SELECT 1 FROM course_enrollment WHERE course_id=? AND account_id=?)",
+                Boolean.class, courseId, accountId));
+    }
     @Transactional(propagation = Propagation.MANDATORY)
     public Access lockForCreation(Principal principal, UUID courseId) {
         if (jdbc.queryForList("SELECT id FROM course WHERE id=? FOR UPDATE", courseId).isEmpty())

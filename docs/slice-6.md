@@ -1,0 +1,27 @@
+# Slice 6 — Applications
+
+Implemented and checkpoint-verified on 2026-10-15 after Slice 5. Whole-batch image/runtime checks and fresh independent review remain separate.
+
+Ungrouped participants apply to occupied, managed groups with space. Pending applications reserve no places. Managers alone approve or reject their group's applications; a rejected student can make a new eligible attempt while earlier outcomes remain readable. Application history is private to the applicant and recorded target manager, with current course/participant authorization on every cursor page.
+
+Forward migration V6 introduces a separate authoritative application-attempt table, pending-pair uniqueness, same-activity references and indexed history ordered by immutable creation time and attempt ID. Cursor scope binds course and actor; the query independently enforces the party predicate. Pages default to 20 and accept 1–50 items, without an aggregate cap or history deletion.
+
+All commands use READ COMMITTED and the activity lock, reread current authorization and eligibility after waiting, and check database wall time immediately before the domain write. Approval shares the joining writer with first joining: membership, accepted outcome, cancellation of the student's other pending applications, newly full group cleanup and the success receipt commit together. Cancellation reasons distinguish “Joined a group” from “Group full”. Completed outcomes and other activities are preserved. Slice 7 will extend the same writer for invitations.
+
+The Courses public access projection owns enrollment eligibility; Grouping does not query Courses or Identity tables. Narrow session DTOs reject unknown fields. Receipts reauthorize and return current permitted information on replay. At cutoff all student mutations, including rejection, stop; history derives EXPIRED for pending rows without persisting expiry or implementing deadline processing.
+
+The local CI configuration gives the image browser run a separate disposable database so activity creation never resets or overwrites the jar run's history. The service-container identifier follows the [GitHub job context contract](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#job-context). Remote CI has not been triggered or verified.
+
+## Current verification
+
+- PASS: exact frontend `npm test`, 109 tests across eight files, followed by `npm run build` (TypeScript and Vite). Logs `.cache/slices-2-7/slice6-frontend-{test,build}.log`.
+- PASS: built-in browser manager approval, applicant confirmation/pending with unchanged capacity, duplicate suppression, keyboard focus restoration and 390px layout. Synthetic services stopped; screenshots retained in ignored scratch.
+- PASS: current eight application integration tests plus fixture preservation on PostgreSQL 17.11; `.tools/slice6-integration-current.log`, finished 16:55:09 +08:00. Covers fresh/upgrade migrations, constraints, strict HTTP/CSRF/authentication, replay, rollback, private cursor pages and read-only expiry.
+- PASS: current ten distinct-transaction application concurrency tests plus ArchUnit; `.tools/slice6-concurrency-current-rerun.log`. Includes observed lock waits, competing last-place and same-student approvals, rejection cutoff, after-wait revocation, deferred rollback and receipt atomicity.
+- Earlier failures are retained: omitted account definitions in a cross-course test fixture; literal-whitespace and locator-typing test defects; and a confirmed navigation bug where duplicate hash events could leave a workspace loading. The navigation fix ignores unchanged route events and has a regression test. The current focused/frontend checks passed after these fixes.
+- PASS: current Java 25 `backend/.\mvnw.cmd verify`, 97 tests, zero failures/errors/skips; 2:27, finished 16:59:26 +08:00. Real PostgreSQL Testcontainers, fresh/upgrade migrations, ArchUnit and recovery; `slice6-backend-verify.log`.
+- Browser attempts: the first full run passed 19/20 and exposed a test expecting 403 instead of the established private-resource 404. The second passed 19/20 and timed out after same-fragment navigation made no new GET; its trace proved the stale view still displayed the earlier pending application. The journey now explicitly refreshes before reapplication and manager decisions. Timeouts and application code were unchanged. Both databases/history and failed logs/artifacts were retained; the current full rerun uses another fresh disposable database.
+- Lead's built-in real-backend inspection confirmed private manager history, approval confirmation and Cancel restoring focus with the application still pending. A stale browser CSRF token after an app restart was rejected without replay; read reconciliation and a separate explicit login succeeded.
+- PASS: current `frontend/npm run test:e2e`, all 20 packaged-jar Chromium workflows, zero retries, 49.8 seconds, fresh disposable `batch_slice6c` database. Log `.cache/slices-2-7/slice6-e2e-current.log`; screenshots under `slice6-final-browser-artifacts`. Lead inspected the actual 390px retained-history screenshot; accepted, rejected and cancellation outcomes remain distinct and readable.
+
+Exact commands, early integration findings and source ownership are maintained in ignored `.cache/slices-2-7/progress.md`; whole-batch image checks and fresh independent reviews follow Slice 7. No allocation/finalization workflow is simulated as acceptance evidence.

@@ -2,7 +2,7 @@
 
 Local implementation of the approved V1 modular monolith. React + Vite + TypeScript, Java 25 / Spring Boot 4.1.1, PostgreSQL, Flyway, and Spring Security with JDBC-backed sessions.
 
-Slice 1 adds provisioned teacher/student course lists and authorized course workspaces to the existing authentication. [Slice 2](docs/slice-2.md) connects profiles/About me; [Slice 3](docs/slice-3.md) adds activity creation; [Slice 4](docs/slice-4.md) adds instruction edits, deadline extensions and safe status reads. [Slice 5](docs/slice-5.md) adds student discovery and deliberate empty-group joining. Requests, allocation, final results, exports, and administration are **not implemented**. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), [Slice 1 evidence](docs/slice-1.md), and [foundation verification record](docs/foundation.md).
+Slice 1 adds provisioned teacher/student course lists and authorized course workspaces to the existing authentication. [Slice 2](docs/slice-2.md) connects profiles/About me; [Slice 3](docs/slice-3.md) adds activity creation; [Slice 4](docs/slice-4.md) adds instruction edits, deadline extensions and safe status reads. [Slice 5](docs/slice-5.md) adds student discovery and deliberate empty-group joining. [Slice 6](docs/slice-6.md) adds private applications, manager decisions and retained history. Invitations, allocation, final results, exports, and administration are **not implemented**. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), [Slice 1 evidence](docs/slice-1.md), and [foundation verification record](docs/foundation.md).
 
 ## Prerequisites
 
@@ -75,7 +75,7 @@ Students can open the course's Classmates tab (`#/courses/<course-UUID>/classmat
 
 ### Isolated batch browser fixtures
 
-`APP_BATCH_FIXTURE_ENABLED=true` (or `--app.batch-fixture.enabled=true`) separately opts into synthetic BATCH-101, BATCH-202 and BATCH-303 courses. Supply `BATCH_FIXTURE_PASSWORD` server-side (12+ characters, at most 72 UTF-8 bytes). Accounts are `batch-teacher` and `batch-student-1` through `batch-student-8`. BATCH-101 has eight students; BATCH-202 has the first two; BATCH-303 has no students. Setup is additive and idempotent, preserves existing identities/passwords/history, and creates no activities. Use a disposable local database for acceptance journeys and disable the flag after setup. The original DEMO courses remain separate.
+`APP_BATCH_FIXTURE_ENABLED=true` (or `--app.batch-fixture.enabled=true`) separately opts into synthetic BATCH courses for isolated acceptance workflows. Supply `BATCH_FIXTURE_PASSWORD` server-side (12+ characters, at most 72 UTF-8 bytes). Accounts are `batch-teacher` and `batch-student-1` through `batch-student-8`. BATCH-101/505/606 have eight students; BATCH-202/404/405/506 have the first two; BATCH-607 has the first four; BATCH-303 has no students. Setup is additive and idempotent, preserves existing identities/passwords/history, and creates no activities. Use a disposable local database for acceptance journeys and disable the flag after setup. The original DEMO courses remain separate.
 
 For frontend hot reload, use a second terminal:
 

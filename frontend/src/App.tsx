@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Groups } from './Groups'
+import { Requests } from './Requests'
 import { Classmates } from './Classmates'
 import { CourseActivity } from './Activity'
 import { ApiError, getCourse, initializeSession, listCourses, signIn, signOut } from './api'
@@ -15,6 +16,7 @@ export function App() {
   const [auth, setAuth] = useState<Authentication>({ state: 'checking' })
   const [notice, setNotice] = useState('')
   const [route, setRoute] = useState(readRoute)
+  const routeRef = useRef(route)
   const [workspace, setWorkspace] = useState<Workspace>({ state: 'loading' })
   const generation = useRef(0)
 
@@ -33,7 +35,12 @@ export function App() {
   }
   useEffect(() => {
     void checkSession()
-    const navigate = () => { setWorkspace({ state: 'loading' }); setRoute(readRoute()) }
+    const navigate = () => {
+      const next = readRoute()
+      if (next === routeRef.current) return
+      routeRef.current = next
+      setWorkspace({ state: 'loading' }); setRoute(next)
+    }
     window.addEventListener('hashchange', navigate)
     return () => { generation.current++; window.removeEventListener('hashchange', navigate) }
   }, [])
@@ -41,7 +48,7 @@ export function App() {
     if (auth.state !== 'authenticated') return
     let active = true
     setWorkspace({ state: 'loading' })
-    const match = /^\/courses\/([0-9a-f-]{36})(?:\/(?:classmates|groups))?$/i.exec(route)
+    const match = /^\/courses\/([0-9a-f-]{36})(?:\/(?:classmates|groups|requests))?$/i.exec(route)
     const request = route === '/courses' ? listCourses().then(courses => ({ state: 'list', courses }) as Workspace)
       : match ? getCourse(match[1]).then(course => ({ state: 'detail', course }) as Workspace)
       : Promise.resolve({ state: 'error', message: 'This course is unavailable or you do not have access.' } as Workspace)
@@ -86,6 +93,6 @@ export function App() {
       {workspace.state === 'loading' ? <section className="state-panel" role="status"><h1>Loading courses…</h1><p>Retrieving your course workspace.</p></section>
         : workspace.state === 'error' ? <section className="state-panel"><h1>Course unavailable</h1><p role="alert">{workspace.message}</p><button className="primary-button" onClick={() => void checkSession()}>Retry</button><a className="back-link" href="#/courses">Back to my courses</a></section>
         : workspace.state === 'list' ? <><section className="page-heading"><span className="eyebrow">YOUR WORKSPACE</span><h1>My courses</h1><p>{session.role === 'TEACHER' ? 'Your assigned courses, in one place.' : 'Your enrolled courses, in one place.'}</p></section>{workspace.courses.length === 0 ? <section className="state-panel"><h2>No courses yet</h2><p>{session.role === 'TEACHER' ? 'You do not have any assigned courses.' : 'You do not have any enrolled courses.'}</p></section> : <div className="course-grid">{workspace.courses.map((course, index) => <a className="course-card" key={course.id} href={`#/courses/${course.id}`}><div className={`course-art tone-${index % 3}`} aria-hidden="true"><span className="art-shapes"><i /><i /><i /><i /></span></div><div className="course-card-content"><span className="eyebrow">{course.code}</span><h2>{course.name}</h2><span className="open-course">Open course <span aria-hidden="true">→</span></span></div></a>)}</div>}</>
-        : <><section className="page-heading"><span className="eyebrow">{workspace.course.code}</span><h1>{workspace.course.name}</h1><p>Course workspace</p></section>{session.role === 'STUDENT' && <nav className="course-tabs" aria-label="Course navigation"><a href={`#/courses/${workspace.course.id}`} aria-current={!route.endsWith('/classmates') && !route.endsWith('/groups') ? 'page' : undefined}>Overview</a><a href={`#/courses/${workspace.course.id}/classmates`} aria-current={route.endsWith('/classmates') ? 'page' : undefined}>Classmates</a><a href={`#/courses/${workspace.course.id}/groups`} aria-current={route.endsWith('/groups') ? 'page' : undefined}>Groups</a></nav>}{route.endsWith('/groups') ? session.role === 'STUDENT' ? <Groups key={workspace.course.id} course={workspace.course} accountId={session.accountId} expired={() => void checkSession('Your session expired. Please sign in again.')} /> : <section className="state-panel"><h2>Groups unavailable</h2><p role="alert">This course is unavailable or you do not have access.</p></section> : route.endsWith('/classmates') ? session.role === 'STUDENT' ? <Classmates key={workspace.course.id} course={workspace.course} accountId={session.accountId} expired={() => void checkSession('Your session expired. Please sign in again.')} /> : <section className="state-panel"><h2>Classmates unavailable</h2><p role="alert">This course is unavailable or you do not have access.</p></section> : <><section className="course-overview"><h2>Course details</h2><dl><div><dt>Course code</dt><dd>{workspace.course.code}</dd></div><div><dt>Course name</dt><dd>{workspace.course.name}</dd></div></dl></section><CourseActivity key={workspace.course.id} course={workspace.course} role={session.role} expired={() => void checkSession('Your session expired. Please sign in again.')} /></>}</>}
+        : <><section className="page-heading"><span className="eyebrow">{workspace.course.code}</span><h1>{workspace.course.name}</h1><p>Course workspace</p></section>{session.role === 'STUDENT' && <nav className="course-tabs" aria-label="Course navigation"><a href={`#/courses/${workspace.course.id}`} aria-current={!route.endsWith('/classmates') && !route.endsWith('/groups') && !route.endsWith('/requests') ? 'page' : undefined}>Overview</a><a href={`#/courses/${workspace.course.id}/classmates`} aria-current={route.endsWith('/classmates') ? 'page' : undefined}>Classmates</a><a href={`#/courses/${workspace.course.id}/groups`} aria-current={route.endsWith('/groups') ? 'page' : undefined}>Groups</a><a href={`#/courses/${workspace.course.id}/requests`} aria-current={route.endsWith('/requests') ? 'page' : undefined}>Requests</a></nav>}{route.endsWith('/requests') ? session.role === 'STUDENT' ? <Requests key={workspace.course.id} course={workspace.course} accountId={session.accountId} expired={() => void checkSession('Your session expired. Please sign in again.')} /> : <section className="state-panel"><h2>Requests unavailable</h2><p role="alert">This course is unavailable or you do not have access.</p></section> : route.endsWith('/groups') ? session.role === 'STUDENT' ? <Groups key={workspace.course.id} course={workspace.course} accountId={session.accountId} expired={() => void checkSession('Your session expired. Please sign in again.')} /> : <section className="state-panel"><h2>Groups unavailable</h2><p role="alert">This course is unavailable or you do not have access.</p></section> : route.endsWith('/classmates') ? session.role === 'STUDENT' ? <Classmates key={workspace.course.id} course={workspace.course} accountId={session.accountId} expired={() => void checkSession('Your session expired. Please sign in again.')} /> : <section className="state-panel"><h2>Classmates unavailable</h2><p role="alert">This course is unavailable or you do not have access.</p></section> : <><section className="course-overview"><h2>Course details</h2><dl><div><dt>Course code</dt><dd>{workspace.course.code}</dd></div><div><dt>Course name</dt><dd>{workspace.course.name}</dd></div></dl></section><CourseActivity key={workspace.course.id} course={workspace.course} role={session.role} expired={() => void checkSession('Your session expired. Please sign in again.')} /></>}</>}
     </main></div>
 }

@@ -136,3 +136,21 @@ test('teacher direct Groups route is denied without grouping data or student nav
   expect(screen.queryByRole('link', { name: 'Groups' })).not.toBeInTheDocument()
   expect(screen.queryByRole('navigation', { name: 'Course navigation' })).not.toBeInTheDocument()
 })
+
+test('teacher direct Requests route is denied without request navigation', async () => {
+  window.location.hash = `#/courses/${course.id}/requests`
+  vi.mocked(api.initializeSession).mockResolvedValue(teacher)
+  render(<App />)
+  expect(await screen.findByRole('heading', { name: 'Requests unavailable' })).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Requests' })).not.toBeInTheDocument()
+  expect(screen.getByRole('alert')).toHaveTextContent('unavailable or you do not have access')
+})
+
+test('duplicate route notification does not strand the loaded workspace', async () => {
+  vi.mocked(api.initializeSession).mockResolvedValue(teacher)
+  render(<App />)
+  await screen.findByRole('link', { name: /Computing/ })
+  window.dispatchEvent(new HashChangeEvent('hashchange'))
+  await waitFor(() => expect(screen.getByRole('link', { name: /Computing/ })).toBeInTheDocument())
+  expect(screen.queryByText('Loading courses…')).not.toBeInTheDocument()
+})

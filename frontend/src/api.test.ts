@@ -167,3 +167,36 @@ test('lost join response is never replayed and an explicit later command obtains
   await expect(joinEmptyGroup('c', 'g', { commandKey: 'second' })).resolves.toEqual(current)
   expect(fetchMock.mock.calls[4][1].headers).toMatchObject({ 'X-CSRF-TOKEN': 'fresh' })
 })
+
+test('applications cursor read sends an encoded opaque cursor and no mutation', async () => {
+  const page = { activityId: 'a', status: 'OPEN', items: [], nextCursor: null }
+  const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(page))))
+  vi.stubGlobal('fetch', fetchMock)
+  const { getApplications } = await import('./api')
+  expect(await getApplications('course/id', 'opaque+/=')).toEqual(page)
+  expect(fetchMock).toHaveBeenCalledWith('/api/courses/course%2Fid/applications?limit=20&cursor=opaque%2B%2F%3D', { credentials: 'same-origin', cache: 'no-store' })
+})
+
+test.each([401, 403, 404, 409, 500])('application status %s sends a narrow command and never replays', async status => {
+  const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'token' })))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ detail: 'private SQL and identity details' }), { status }))
+  vi.stubGlobal('fetch', fetchMock)
+  const { applyToGroup } = await import('./api')
+  const command = { commandKey: 'new-command' }
+  await expect(applyToGroup('course/id', 'group/id', command)).rejects.toMatchObject({ status, message: 'Application action could not be confirmed. Refresh requests and groups before choosing another action.' })
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  expect(fetchMock.mock.calls[1]).toEqual(['/api/courses/course%2Fid/groups/group%2Fid/applications', { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': 'token', 'Content-Type': 'application/json' }, body: JSON.stringify(command) }])
+})
+
+test('lost decision is never replayed and a new choice obtains fresh CSRF', async () => {
+  const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'old' })))
+    .mockRejectedValueOnce(new TypeError('lost response'))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'fresh' })))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ activityId: 'a', status: 'FINALIZING', items: [], nextCursor: null })))
+  vi.stubGlobal('fetch', fetchMock)
+  const { decideApplication } = await import('./api')
+  await expect(decideApplication('c/id', 'a/id', { commandKey: 'first', decision: 'APPROVE' })).rejects.toThrow('lost response')
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  await decideApplication('c/id', 'a/id', { commandKey: 'second', decision: 'REJECT' })
+  expect(fetchMock.mock.calls[3]).toEqual(['/api/courses/c%2Fid/applications/a%2Fid/decision', { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': 'fresh', 'Content-Type': 'application/json' }, body: JSON.stringify({ commandKey: 'second', decision: 'REJECT' }) }])
+})

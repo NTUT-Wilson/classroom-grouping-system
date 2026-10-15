@@ -8,5 +8,7 @@ import java.util.UUID;
 public interface ActivityCourseAccess {
     Access read(Principal principal, UUID courseId);
     Access lockForCreation(Principal principal, UUID courseId);
+    /** Trusted server-side eligibility projection; callers must authorize their acting user separately. */
+    boolean isEnrolledStudent(UUID courseId, UUID accountId);
     record Access(UUID actorId, boolean teacher, List<UUID> enrolledStudents) {}
 }

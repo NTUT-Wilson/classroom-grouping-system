@@ -26,12 +26,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true, isolation = Isolation.READ_COMMITTED)
 class DatabaseGroupingMemberships implements GroupingMemberships {
     private final JdbcTemplate jdbc;
+    private final GroupJoiningWriter joining;
     private final ActivityCourseAccess courses;
     private final StudentIdentities identities;
     private final CourseIntroductions introductions;
     DatabaseGroupingMemberships(JdbcTemplate jdbc, ActivityCourseAccess courses, StudentIdentities identities,
-            CourseIntroductions introductions) {
-        this.jdbc = jdbc; this.courses = courses; this.identities = identities; this.introductions = introductions;
+            CourseIntroductions introductions, GroupJoiningWriter joining) {
+        this.joining = joining; this.jdbc = jdbc; this.courses = courses; this.identities = identities; this.introductions = introductions;
     }
     // Read one coherent roster/status snapshot; wall-clock cutoff checks still use clock_timestamp().
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
@@ -73,17 +74,8 @@ class DatabaseGroupingMemberships implements GroupingMemberships {
                 Integer.class, activity.id(), groupId) != 0) throw new GroupingConflict("GROUP_NOT_EMPTY");
         if (!jdbc.queryForList("SELECT group_id FROM activity_membership WHERE activity_id=? AND account_id=?",
                 activity.id(), access.actorId()).isEmpty()) throw new GroupingConflict("ALREADY_GROUPED");
-        establishFirstMembership(activity, groupId, access.actorId());
+        joining.join(activity.id(), activity.deadline(), groupId, access.actorId(), null);
         return project(courseId, activity, access.actorId());
-    }
-    /** Single transaction joining path. Later accepted requests and pending-request cleanup extend this path. */
-    private void establishFirstMembership(Activity activity, UUID groupId, UUID actorId) {
-        // Use database wall time immediately before the first membership write, never transaction-start now().
-        requireOpen(activity);
-        jdbc.update("INSERT INTO activity_membership(activity_id,account_id,group_id) VALUES (?,?,?)",
-                activity.id(), actorId, groupId);
-        jdbc.update("UPDATE activity_group SET manager_account_id=? WHERE activity_id=? AND id=?",
-                actorId, activity.id(), groupId);
     }
     private ActivityCourseAccess.Access student(Principal principal, UUID courseId) {
         var access = courses.read(principal, courseId);
