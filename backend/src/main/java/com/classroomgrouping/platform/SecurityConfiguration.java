@@ -47,6 +47,7 @@ class SecurityConfiguration {
                                 "/actuator/health/readiness").permitAll()
                         .requestMatchers("/api/auth/login", "/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/session").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/courses", "/api/courses/*").hasAnyRole("TEACHER", "STUDENT")
                         .anyRequest().denyAll())
                 .requestCache(cache -> cache.requestCache(new NullRequestCache()))
                 .addFilterBefore(new LoginThrottleFilter(loginAttempts), UsernamePasswordAuthenticationFilter.class)

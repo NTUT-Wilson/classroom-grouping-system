@@ -1,0 +1,167 @@
+import { expect, test } from '@playwright/test'
+import type { Page } from '@playwright/test'
+
+type Course = { id: string; code: string; name: string }
+function password(role: 'TEACHER' | 'STUDENT') {
+  const value = process.env[role === 'TEACHER' ? 'ROSTER_TEACHER_PASSWORD' : 'ROSTER_STUDENT_PASSWORD']
+  if (!value) throw new Error('Enable the opt-in roster backend and set ROSTER_TEACHER_PASSWORD and ROSTER_STUDENT_PASSWORD')
+  return value
+}
+async function login(page: Page, username: string, role: 'TEACHER' | 'STUDENT', path = '/') {
+  await page.goto(path)
+  await page.getByLabel('Username').fill(username)
+  await page.getByLabel('Password').fill(password(role))
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page.getByText(username, { exact: true })).toBeVisible()
+}
+async function courses(page: Page): Promise<Course[]> {
+  const response = await page.request.get('/api/courses')
+  expect(response.status()).toBe(200)
+  return response.json() as Promise<Course[]>
+}
+async function overflow(page: Page) {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+}
+
+test('teacher and student lists, direct authorization, deep links, reload and logout use the real backend', async ({ browser }, testInfo) => {
+  const teacher = await browser.newContext()
+  const student = await browser.newContext()
+  try {
+    const t = await teacher.newPage(); const s = await student.newPage()
+    await login(t, 'roster-teacher', 'TEACHER')
+    await login(s, 'roster-other-student', 'STUDENT')
+    const teacherCourses = await courses(t); const studentCourses = await courses(s)
+    expect(teacherCourses.map(c => c.code)).toEqual(['DEMO-101'])
+    expect(studentCourses.map(c => c.code)).toEqual(['DEMO-202'])
+    await t.screenshot({ path: testInfo.outputPath('teacher-courses-desktop.png'), fullPage: true })
+    await s.screenshot({ path: testInfo.outputPath('student-courses-desktop.png'), fullPage: true })
+    await expect(t.getByText('Another Synthetic Classroom', { exact: true })).toHaveCount(0)
+    await expect(s.getByText('Synthetic Classroom', { exact: true })).toHaveCount(0)
+    for (const [page, permitted, forbidden] of [[t, teacherCourses[0], studentCourses[0]], [s, studentCourses[0], teacherCourses[0]]] as const) {
+      const denied = await page.request.get(`/api/courses/${forbidden.id}`)
+      const unknown = await page.request.get('/api/courses/00000000-0000-0000-0000-000000000000')
+      expect(denied.status()).toBe(404); expect(unknown.status()).toBe(404)
+      expect((await denied.json()).code).toBe('COURSE_NOT_ACCESSIBLE')
+      expect((await unknown.json()).code).toBe('COURSE_NOT_ACCESSIBLE')
+      await expect(page.getByRole('link', { name: new RegExp(permitted.name) })).toBeVisible()
+      await page.getByRole('link', { name: new RegExp(permitted.name) }).press('Enter')
+      await expect(page.getByRole('heading', { name: permitted.name, exact: true })).toBeVisible()
+      await page.reload()
+      await expect(page.getByRole('heading', { name: permitted.name, exact: true })).toBeVisible()
+      await page.screenshot({ path: testInfo.outputPath(`${page === t ? 'teacher' : 'student'}-workspace-desktop.png`), fullPage: true })
+      await page.goto(`/#/courses/${forbidden.id}`)
+      await expect(page.getByRole('alert')).toHaveText('This course is unavailable or you do not have access.')
+      await expect(page.getByText(forbidden.name, { exact: true })).toHaveCount(0)
+      await page.goto('/#/courses/00000000-0000-0000-0000-000000000000')
+      await expect(page.getByRole('alert')).toHaveText('This course is unavailable or you do not have access.')
+      await page.getByRole('link', { name: 'Back to my courses' }).click()
+      await expect(page.getByRole('heading', { name: 'My courses', exact: true })).toBeVisible()
+      await page.goto(`/#/courses/${permitted.id}`)
+      await expect(page.getByRole('heading', { name: permitted.name, exact: true })).toBeVisible()
+      await page.getByRole('button', { name: 'Sign out' }).click()
+      await expect(page.getByLabel('Password')).toBeVisible()
+      await page.screenshot({ path: testInfo.outputPath(`${page === t ? 'teacher' : 'student'}-signed-out-desktop.png`), fullPage: true })
+      expect((await page.request.get('/api/courses')).status()).toBe(401)
+      await page.reload()
+      await expect(page.getByLabel('Password')).toBeVisible()
+      await page.getByLabel('Username').fill(page === t ? 'roster-teacher' : 'roster-other-student')
+      await page.getByLabel('Password').fill(password(page === t ? 'TEACHER' : 'STUDENT'))
+      await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+      await expect(page.getByRole('heading', { name: permitted.name, exact: true })).toBeVisible()
+      await page.getByRole('button', { name: 'Sign out' }).click()
+    }
+  } finally { await teacher.close(); await student.close() }
+})
+
+for (const width of [1280, 390]) test(`real session initialization and course reads expose loading states at ${width}px`, async ({ page }, testInfo) => {
+  await page.setViewportSize({ width, height: 844 })
+  let releaseSession!: () => void
+  const sessionGate = new Promise<void>(resolve => { releaseSession = resolve })
+  await page.route('**/api/auth/session', async route => { await sessionGate; await route.continue() })
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Checking your session…' })).toBeVisible()
+  await expect(page.getByLabel('Password')).toHaveCount(0)
+  await page.screenshot({ path: testInfo.outputPath('session-loading-desktop.png'), fullPage: true })
+  releaseSession()
+  await expect(page.getByLabel('Password')).toBeVisible()
+  await page.unroute('**/api/auth/session')
+  let releaseCourses!: () => void
+  const coursesGate = new Promise<void>(resolve => { releaseCourses = resolve })
+  await page.route('**/api/courses', async route => { await coursesGate; await route.continue() })
+  await page.getByLabel('Username').fill('roster-student')
+  await page.getByLabel('Password').fill(password('STUDENT'))
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Loading courses…' })).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('courses-loading-desktop.png'), fullPage: true })
+  releaseCourses()
+  await expect(page.getByRole('link', { name: /Synthetic Classroom/ })).toBeVisible()
+  await overflow(page)
+})
+
+test('empty enrollment and narrow keyboard workspace remain usable', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await login(page, 'roster-empty-student', 'STUDENT')
+  await expect(page.getByRole('heading', { name: 'No courses yet' })).toBeVisible()
+  await overflow(page)
+  await page.screenshot({ path: testInfo.outputPath('empty-mobile.png'), fullPage: true })
+  await page.getByRole('button', { name: 'Sign out' }).press('Enter')
+  await expect(page.getByLabel('Password')).toBeVisible()
+  await login(page, 'roster-student', 'STUDENT')
+  await page.getByRole('link', { name: /Synthetic Classroom/ }).press('Enter')
+  await expect(page.getByRole('heading', { name: 'Synthetic Classroom', exact: true })).toBeVisible()
+  await page.getByRole('link', { name: 'Skip to content' }).press('Enter')
+  await expect(page.locator('#workspace')).toBeFocused()
+  await expect(page.getByRole('heading', { name: 'Synthetic Classroom', exact: true })).toBeVisible()
+  await overflow(page)
+  await page.screenshot({ path: testInfo.outputPath('workspace-mobile.png'), fullPage: true })
+  await page.goto('/#/courses/00000000-0000-0000-0000-000000000000')
+  await expect(page.getByRole('alert')).toHaveText('This course is unavailable or you do not have access.')
+  await overflow(page)
+  await page.screenshot({ path: testInfo.outputPath('denied-mobile.png'), fullPage: true })
+  await page.getByRole('button', { name: 'Sign out' }).click()
+  await expect(page.getByLabel('Password')).toBeVisible()
+  await page.getByLabel('Username').fill('roster-student')
+  await page.getByLabel('Password').fill('deliberately-invalid-test-password')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page.getByRole('alert')).toHaveText('Invalid username or password.')
+  await overflow(page)
+  await page.screenshot({ path: testInfo.outputPath('invalid-sign-in-mobile.png'), fullPage: true })
+})
+
+for (const width of [1280, 390]) test(`course read failures differ from empty and real session invalidation clears data at ${width}px`, async ({ page }, testInfo) => {
+  await page.setViewportSize({ width, height: 844 })
+  await login(page, 'roster-student', 'STUDENT')
+  const [course] = await courses(page)
+  await page.route('**/api/courses', route => route.fulfill({ status: 503, body: '{}' }))
+  await page.getByRole('button', { name: 'Refresh' }).click()
+  await expect(page.getByRole('alert')).toHaveText('Unable to load courses. Please retry.')
+  await expect(page.getByRole('heading', { name: 'No courses yet' })).toHaveCount(0)
+  await overflow(page)
+  await page.screenshot({ path: testInfo.outputPath('course-read-failure.png'), fullPage: true })
+  await page.unroute('**/api/courses')
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(page.getByRole('link', { name: /Synthetic Classroom/ })).toBeVisible()
+  await page.route(`**/api/courses/${course.id}`, route => route.fulfill({ status: 503, body: '{}' }))
+  await page.getByRole('link', { name: /Synthetic Classroom/ }).click()
+  await expect(page.getByRole('alert')).toHaveText('Unable to load courses. Please retry.')
+  await page.unroute(`**/api/courses/${course.id}`)
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(page.getByRole('heading', { name: course.name, exact: true })).toBeVisible()
+  const csrf = await (await page.request.get('/api/auth/csrf')).json()
+  expect((await page.request.post('/api/auth/logout', { headers: { [csrf.headerName]: csrf.token } })).status()).toBe(204)
+  await page.getByRole('button', { name: 'Refresh' }).click()
+  await expect(page.getByLabel('Password')).toBeVisible()
+  await expect(page.getByText(course.name, { exact: true })).toHaveCount(0)
+})
+
+test('lost real login and logout responses reconcile without replaying either POST', async ({ page }) => {
+  let loginPosts = 0; let logoutPosts = 0
+  await page.route('**/api/auth/login', async route => { loginPosts++; await route.fetch(); await route.abort('failed') })
+  await login(page, 'roster-student', 'STUDENT')
+  expect(loginPosts).toBe(1)
+  await page.route('**/api/auth/logout', async route => { logoutPosts++; await route.fetch(); await route.abort('failed') })
+  await page.getByRole('button', { name: 'Sign out' }).click()
+  await expect(page.getByLabel('Password')).toBeVisible()
+  expect(logoutPosts).toBe(1)
+  expect((await page.request.get('/api/auth/session')).status()).toBe(401)
+})

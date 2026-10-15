@@ -7,6 +7,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /** Explicit opt-in foundation account only; no course or grouping data is created. */
 @Configuration
@@ -14,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 class DemoAccountSetup {
     @Bean
     ApplicationRunner seedDemoAccount(AccountRepository accounts, PasswordEncoder encoder,
+            JdbcTemplate jdbc, PlatformTransactionManager transactions,
             @Value("${app.demo.username}") String username,
             @Value("${app.demo.password}") String password) {
         if (username.isBlank() || username.length() > 100
@@ -21,9 +25,12 @@ class DemoAccountSetup {
             throw new IllegalArgumentException("Opt-in demo setup needs a username and a 12+ character password within bcrypt's 72-byte limit");
         }
         return args -> {
-            if (accounts.findByUsername(username).isEmpty()) {
-                accounts.save(new Account(username, encoder.encode(password), "STUDENT"));
-            }
+            new TransactionTemplate(transactions).executeWithoutResult(status -> {
+                jdbc.execute("SELECT pg_advisory_xact_lock(73109421)");
+                if (accounts.findByUsername(username).isEmpty()) {
+                    accounts.saveAndFlush(new Account(username, encoder.encode(password), "STUDENT"));
+                }
+            });
         };
     }
 }

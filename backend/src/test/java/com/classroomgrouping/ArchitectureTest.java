@@ -20,6 +20,12 @@ class ArchitectureTest {
         noClasses().that().resideOutsideOfPackage("..identity..")
                 .should().dependOnClassesThat().resideInAPackage("..identity.internal..")
                 .allowEmptyShould(true).check(classes);
+        noClasses().that().resideOutsideOfPackage("..courses..")
+                .should().dependOnClassesThat().resideInAPackage("..courses.internal..")
+                .allowEmptyShould(true).check(classes);
+        noClasses().that().resideOutsideOfPackage("..grouping..")
+                .should().dependOnClassesThat().resideInAPackage("..grouping.internal..")
+                .allowEmptyShould(true).check(classes);
         noClasses().that().resideInAPackage("..grouping.results..")
                 .should().dependOnClassesThat().resideInAPackage("..grouping.internal..")
                 .allowEmptyShould(true).check(classes);

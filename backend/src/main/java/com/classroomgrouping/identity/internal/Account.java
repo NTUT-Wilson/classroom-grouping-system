@@ -24,6 +24,7 @@ public class Account {
     }
 
     public String getUsername() { return username; }
+    public UUID getId() { return id; }
     public String getPasswordHash() { return passwordHash; }
     public String getRole() { return role; }
 }
