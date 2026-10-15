@@ -15,7 +15,7 @@ jobs:
           POSTGRES_PASSWORD: ci-only-password
         ports: ['5432:5432']
         options: >-
-          --health-cmd 'pg_isready -U classroom_local -d classroom_grouping'
+          --health-cmd=pg_isready
           --health-interval 5s --health-timeout 3s --health-retries 20
     steps:
       - uses: actions/checkout@v4
