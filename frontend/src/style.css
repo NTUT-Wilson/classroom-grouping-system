@@ -142,3 +142,21 @@ body { margin:0; }
 @media(max-width:900px) { .activity-columns { grid-template-columns:minmax(0,1fr); } .activity-guide { padding:12px; } }
 @media(max-width:700px) { .activity-panel { padding:22px; } .activity-toolbar { flex-wrap:wrap; } .activity-setting time { overflow-wrap:anywhere; } }
 .settings-editor { margin-top: 24px; max-width: 850px; } .settings-current { margin: 20px 0; padding: 16px; background: var(--paper, #f5f6f2); border-radius: 12px; min-width: 0; } .settings-current .activity-instructions { margin-bottom: 0; }
+.groups-workspace { margin-top:28px; }
+.groups-workspace h2 { margin:6px 0; }
+.group-status { border:1px solid #cbd8f4; background:#edf2ff; padding:20px 24px; border-radius:12px; margin-bottom:24px; }
+.group-status h3 { margin:0 0 6px; }
+.groups-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:22px; align-items:start; }
+.group-card { padding:24px; border:1px solid #e1e8ee; background:white; border-radius:12px; min-width:0; }
+.own-group { border-color:#789deb; }
+.group-card-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+.group-card h3 { margin:0; font-size:19px; }
+.group-badge { color:#627684; background:#f1f4f8; padding:3px 9px; border-radius:6px; font-size:11px; }
+.group-capacity { color:#627684; margin-top:10px !important; }
+.empty-group-copy { margin:28px 0 !important; color:#627684; }
+.group-members { margin:0; padding:0; list-style:none; }
+.group-member { padding:16px 0; border-top:1px solid #edf0f5; overflow-wrap:anywhere; }
+.group-member p { color:#627684; font-size:12px; margin-top:5px; }
+.join-explanation { margin-top:18px !important; color:#627684; }
+@media(max-width:900px) { .groups-grid { grid-template-columns:minmax(0,1fr); } }
+@media(max-width:700px) { .group-card { padding:22px; } .course-tabs { gap:24px; } }

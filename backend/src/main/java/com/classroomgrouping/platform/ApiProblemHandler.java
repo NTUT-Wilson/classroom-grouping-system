@@ -4,6 +4,8 @@ import com.classroomgrouping.courses.api.CourseNotAccessible;
 import com.classroomgrouping.courses.api.ProfileValidationException;
 import com.classroomgrouping.grouping.api.ActivityConflict;
 import com.classroomgrouping.grouping.api.ActivityValidationException;
+import com.classroomgrouping.grouping.api.GroupingConflict;
+import com.classroomgrouping.grouping.api.GroupingValidationException;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Map;
@@ -18,6 +20,25 @@ import tools.jackson.databind.ObjectMapper;
 class ApiProblemHandler {
     private final ObjectMapper mapper;
     ApiProblemHandler(ObjectMapper mapper) { this.mapper = mapper; }
+
+    @ExceptionHandler(GroupingValidationException.class)
+    void invalidGrouping(GroupingValidationException exception, HttpServletResponse response) throws IOException {
+        response.setStatus(400);
+        response.setContentType("application/problem+json");
+        response.setHeader("Cache-Control", "no-store");
+        response.getWriter().write(mapper.writeValueAsString(Map.of("type", "about:blank", "status", 400,
+                "title", "Invalid grouping command", "code", exception.code(),
+                "fieldErrors", Map.of(exception.field(), exception.safeMessage()))));
+    }
+
+    @ExceptionHandler(GroupingConflict.class)
+    void groupingConflict(GroupingConflict exception, HttpServletResponse response) throws IOException {
+        response.setStatus(409);
+        response.setContentType("application/problem+json");
+        response.setHeader("Cache-Control", "no-store");
+        response.getWriter().write(mapper.writeValueAsString(Map.of("type", "about:blank", "status", 409,
+                "title", "Grouping conflict", "code", exception.code(), "detail", exception.safeMessage())));
+    }
 
     @ExceptionHandler(ActivityValidationException.class)
     void invalidActivity(ActivityValidationException exception, HttpServletResponse response) throws IOException {
@@ -52,6 +73,10 @@ class ApiProblemHandler {
         for (int depth = 0; cause != null && depth < 8; depth++, cause = cause.getCause()) {
             if (cause instanceof ActivityValidationException validation) {
                 invalidActivity(validation, response);
+                return;
+            }
+            if (cause instanceof GroupingValidationException validation) {
+                invalidGrouping(validation, response);
                 return;
             }
         }

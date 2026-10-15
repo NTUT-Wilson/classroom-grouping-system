@@ -127,3 +127,12 @@ test('failed refresh removes previous course data until session can be read', as
   await screen.findByText('Session unavailable')
   expect(screen.queryByText('Computing')).not.toBeInTheDocument()
 })
+
+test('teacher direct Groups route is denied without grouping data or student navigation', async () => {
+  window.location.hash = `#/courses/${course.id}/groups`
+  vi.mocked(api.initializeSession).mockResolvedValue(teacher)
+  render(<App />)
+  expect(await screen.findByRole('heading', { name: 'Groups unavailable' })).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Groups' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('navigation', { name: 'Course navigation' })).not.toBeInTheDocument()
+})

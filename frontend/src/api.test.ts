@@ -131,3 +131,39 @@ test('settings lost response never replays and explicit later command obtains fr
   await saveInstructions('course', { commandKey: 'second', instructions: 'Text' })
   expect(fetchMock.mock.calls[3][1].headers).toMatchObject({ 'X-CSRF-TOKEN': 'new' })
 })
+
+test('group discovery read is credentialed and uncached without mutations', async () => {
+  const current = { activityId: null, status: 'ABSENT', ownGroupId: null, groups: [] }
+  const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(current)))
+  vi.stubGlobal('fetch', fetchMock)
+  const { getGrouping } = await import('./api')
+  expect(await getGrouping('course/id')).toEqual(current)
+  expect(fetchMock).toHaveBeenCalledWith('/api/courses/course%2Fid/grouping', { credentials: 'same-origin', cache: 'no-store' })
+})
+
+test.each([401, 403, 409, 500])('join status %s preserves safe conflict code and never replays', async status => {
+  const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'join-token' })))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ code: 'GROUP_NOT_EMPTY', detail: 'private detail' }), { status }))
+  vi.stubGlobal('fetch', fetchMock)
+  const { joinEmptyGroup } = await import('./api')
+  const command = { commandKey: '11111111-1111-4111-8111-111111111111' }
+  await expect(joinEmptyGroup('course/id', 'group/id', command)).rejects.toMatchObject({ status, code: 'GROUP_NOT_EMPTY', message: 'Joining could not be confirmed. Check current groups before continuing.' })
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  expect(fetchMock.mock.calls[1]).toEqual(['/api/courses/course%2Fid/groups/group%2Fid/join', { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': 'join-token', 'Content-Type': 'application/json' }, body: JSON.stringify(command) }])
+})
+
+test('lost join response is never replayed and an explicit later command obtains fresh CSRF', async () => {
+  const current = { activityId: 'a', status: 'OPEN', ownGroupId: 'g', groups: [] }
+  const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'old' })))
+    .mockRejectedValueOnce(new TypeError('lost response'))
+    .mockResolvedValueOnce(new Response(JSON.stringify(current)))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'fresh' })))
+    .mockResolvedValueOnce(new Response(JSON.stringify(current)))
+  vi.stubGlobal('fetch', fetchMock)
+  const { joinEmptyGroup, getGrouping } = await import('./api')
+  await expect(joinEmptyGroup('c', 'g', { commandKey: 'first' })).rejects.toThrow('lost response')
+  expect(await getGrouping('c')).toEqual(current)
+  expect(fetchMock.mock.calls.filter(call => call[1]?.method === 'POST')).toHaveLength(1)
+  await expect(joinEmptyGroup('c', 'g', { commandKey: 'second' })).resolves.toEqual(current)
+  expect(fetchMock.mock.calls[4][1].headers).toMatchObject({ 'X-CSRF-TOKEN': 'fresh' })
+})

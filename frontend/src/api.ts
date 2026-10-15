@@ -4,11 +4,13 @@ export type Classmate = { accountId: string; studentId: string; studentName: str
 export type Activity = { id: string; courseId: string; instructions: string; deadline: string; status: 'OPEN' | 'FINALIZING'; groups: { id: string; ordinal: number; name: string; capacity: number }[] }
 export type ActivityWorkspace = { activity: Activity | null; enrolledCount: number | null }
 export type CreateActivity = { commandKey: string; instructions: string; deadline: string; capacities: number[] }
+export type DiscoveryGroup = { id: string; name: string; capacity: number; availablePlaces: number; manager: Classmate | null; members: Classmate[] }
+export type GroupDiscovery = { activityId: string | null; status: 'ABSENT' | 'OPEN' | 'FINALIZING'; ownGroupId: string | null; groups: DiscoveryGroup[] }
 type CsrfToken = { headerName: string; token: string }
 let token: CsrfToken | undefined
 
 export class ApiError extends Error {
-  constructor(public readonly status: number, message: string) { super(message) }
+  constructor(public readonly status: number, message: string, public readonly code?: string) { super(message) }
 }
 async function refreshCsrf(): Promise<void> {
   token = undefined
@@ -35,6 +37,21 @@ async function readCourse<T>(url: string): Promise<T> {
 export function listCourses(): Promise<Course[]> { return readCourse('/api/courses') }
 export function getCourse(id: string): Promise<Course> { return readCourse(`/api/courses/${encodeURIComponent(id)}`) }
 export function getActivity(id: string): Promise<ActivityWorkspace> { return readCourse(`/api/courses/${encodeURIComponent(id)}/activity`) }
+export function getGrouping(id: string): Promise<GroupDiscovery> { return readCourse(`/api/courses/${encodeURIComponent(id)}/grouping`) }
+export async function joinEmptyGroup(id: string, groupId: string, command: { commandKey: string }): Promise<GroupDiscovery> {
+  if (!token) await refreshCsrf()
+  const csrf = token!
+  token = undefined
+  const response = await fetch(`/api/courses/${encodeURIComponent(id)}/groups/${encodeURIComponent(groupId)}/join`, {
+    method: 'POST', credentials: 'same-origin', headers: { [csrf.headerName]: csrf.token, 'Content-Type': 'application/json' }, body: JSON.stringify(command),
+  })
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null) as { code?: unknown } | null
+    const code = typeof problem?.code === 'string' ? problem.code : undefined
+    throw new ApiError(response.status, 'Joining could not be confirmed. Check current groups before continuing.', code)
+  }
+  return response.json() as Promise<GroupDiscovery>
+}
 async function saveActivitySetting(id: string, setting: 'instructions' | 'deadline', command: { commandKey: string; instructions?: string; deadline?: string }): Promise<ActivityWorkspace> {
   if (!token) await refreshCsrf()
   const csrf = token!
