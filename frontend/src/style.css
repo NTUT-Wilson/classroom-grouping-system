@@ -172,3 +172,4 @@ body { margin:0; }
 .request-party .profile-full-text { margin:8px 0 !important; }
 .load-older { margin-top:20px; }
 @media(max-width:700px) { .request-parties { grid-template-columns:minmax(0,1fr); gap:16px; } .request-card { padding:22px; } .course-tabs { gap:20px; flex-wrap:wrap; } }
+.request-views { display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap; } .invitation-candidates { margin:24px 0 32px; } .person-card button { max-width:100%; overflow-wrap:anywhere; white-space:normal; }

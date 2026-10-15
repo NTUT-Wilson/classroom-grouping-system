@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ApiError, applyToGroup, getApplications, getGrouping, joinEmptyGroup } from './api'
+import { ApiError, applyToGroup, getApplications, getGrouping, getInvitations, joinEmptyGroup } from './api'
 import type { Classmate, Course, DiscoveryGroup, GroupDiscovery } from './api'
 
 function JoinDialog({ group, close, confirm, trigger, application }: { group: DiscoveryGroup; close: () => void; confirm: () => void; trigger: HTMLElement | null; application: boolean }) {
@@ -42,10 +42,10 @@ export function Groups({ course, accountId, expired }: { course: Course; account
     setState('loading'); setData(null); setSelected(null)
     if (!preserveProblem) setProblem('')
     try {
-      const [current, history] = await Promise.all([getGrouping(course.id), getApplications(course.id)])
+      const [current, history, invitations] = await Promise.all([getGrouping(course.id), getApplications(course.id), getInvitations(course.id)])
       if (request !== generation.current) return
       setPendingGroups(history.items.filter(item => item.status === 'PENDING' && item.applicant.accountId === accountId).map(item => item.groupId))
-      setData(current); setState('ready'); setUncertain(false)
+      setData({ ...current, status: history.status === 'FINALIZING' || invitations.status === 'FINALIZING' ? 'FINALIZING' : current.status }); setState('ready'); setUncertain(false)
     } catch (cause) {
       if (request !== generation.current || deny(cause)) return
       setState('error'); setProblem(previous => `${preserveProblem && previous ? previous + '. ' : ''}Current groups could not be checked. Please retry.`)

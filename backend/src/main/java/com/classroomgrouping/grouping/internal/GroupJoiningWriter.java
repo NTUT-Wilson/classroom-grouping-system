@@ -16,6 +16,12 @@ class GroupJoiningWriter {
     private final JdbcTemplate jdbc;
     GroupJoiningWriter(JdbcTemplate jdbc) { this.jdbc = jdbc; }
     void join(UUID activityId, Instant deadline, UUID groupId, UUID studentId, UUID acceptedApplication) {
+        join(activityId,deadline,groupId,studentId,acceptedApplication,null);
+    }
+    void joinInvitation(UUID activityId, Instant deadline, UUID groupId, UUID studentId, UUID acceptedInvitation) {
+        join(activityId,deadline,groupId,studentId,null,acceptedInvitation);
+    }
+    private void join(UUID activityId, Instant deadline, UUID groupId, UUID studentId, UUID acceptedApplication, UUID acceptedInvitation) {
         if (!jdbc.queryForList("SELECT 1 FROM activity_membership WHERE activity_id=? AND account_id=?",activityId,studentId).isEmpty())
             throw new GroupingConflict("ALREADY_GROUPED");
         int capacity = jdbc.queryForObject("SELECT capacity FROM activity_group WHERE activity_id=? AND id=?",Integer.class,activityId,groupId);
@@ -26,7 +32,11 @@ class GroupJoiningWriter {
         if (count == 0) jdbc.update("UPDATE activity_group SET manager_account_id=? WHERE activity_id=? AND id=?",studentId,activityId,groupId);
         if (acceptedApplication != null && jdbc.update("UPDATE application_attempt SET status='ACCEPTED' WHERE activity_id=? AND group_id=? AND applicant_account_id=? AND id=? AND status='PENDING'",activityId,groupId,studentId,acceptedApplication) != 1)
             throw new GroupingConflict("APPLICATION_NOT_PENDING");
+        if (acceptedInvitation != null && jdbc.update("UPDATE invitation_attempt SET status='ACCEPTED' WHERE activity_id=? AND group_id=? AND recipient_account_id=? AND id=? AND status='PENDING'",activityId,groupId,studentId,acceptedInvitation) != 1)
+            throw new GroupingConflict("INVITATION_NOT_PENDING");
+        jdbc.update("UPDATE invitation_attempt SET status='CANCELED',reason='Joined a group' WHERE activity_id=? AND recipient_account_id=? AND status='PENDING'",activityId,studentId);
         jdbc.update("UPDATE application_attempt SET status='CANCELED',reason='Joined a group' WHERE activity_id=? AND applicant_account_id=? AND status='PENDING'",activityId,studentId);
+        if (count + 1 == capacity) jdbc.update("UPDATE invitation_attempt SET status='CANCELED',reason='Group full' WHERE activity_id=? AND group_id=? AND status='PENDING'",activityId,groupId);
         if (count + 1 == capacity) jdbc.update("UPDATE application_attempt SET status='CANCELED',reason='Group full' WHERE activity_id=? AND group_id=? AND status='PENDING'",activityId,groupId);
     }
     void requireOpen(Instant deadline) {

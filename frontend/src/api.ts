@@ -8,6 +8,25 @@ export type DiscoveryGroup = { id: string; name: string; capacity: number; avail
 export type GroupDiscovery = { activityId: string | null; status: 'ABSENT' | 'OPEN' | 'FINALIZING'; ownGroupId: string | null; groups: DiscoveryGroup[] }
 export type ApplicationAttempt = { id: string; groupId: string; groupName: string; applicant: Classmate; manager: Classmate; status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELED' | 'EXPIRED'; reason: string | null; createdAt: string }
 export type ApplicationPage = { activityId: string | null; status: 'ABSENT' | 'OPEN' | 'FINALIZING'; items: ApplicationAttempt[]; nextCursor: string | null }
+export type InvitationAttempt = Omit<ApplicationAttempt, 'applicant' | 'manager'> & { sender: Classmate; recipient: Classmate }
+export type InvitationPage = Omit<ApplicationPage, 'items'> & { items: InvitationAttempt[] }
+export function getInvitations(id: string, cursor?: string): Promise<InvitationPage> {
+  return readCourse(`/api/courses/${encodeURIComponent(id)}/invitations?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`)
+}
+async function invitationCommand(url: string, command: { commandKey: string; recipientId?: string; decision?: 'ACCEPT' | 'REJECT' }): Promise<InvitationPage> {
+  if (!token) await refreshCsrf()
+  const csrf = token!
+  token = undefined
+  const response = await fetch(url, { method: 'POST', credentials: 'same-origin', headers: { [csrf.headerName]: csrf.token, 'Content-Type': 'application/json' }, body: JSON.stringify(command) })
+  if (!response.ok) throw new ApiError(response.status, 'Invitation action could not be confirmed. Refresh requests before choosing another action.')
+  return response.json() as Promise<InvitationPage>
+}
+export function inviteClassmate(id: string, groupId: string, command: { commandKey: string; recipientId: string }): Promise<InvitationPage> {
+  return invitationCommand(`/api/courses/${encodeURIComponent(id)}/groups/${encodeURIComponent(groupId)}/invitations`, command)
+}
+export function decideInvitation(id: string, invitationId: string, command: { commandKey: string; decision: 'ACCEPT' | 'REJECT' }): Promise<InvitationPage> {
+  return invitationCommand(`/api/courses/${encodeURIComponent(id)}/invitations/${encodeURIComponent(invitationId)}/decision`, command)
+}
 export function getApplications(id: string, cursor?: string): Promise<ApplicationPage> {
   return readCourse(`/api/courses/${encodeURIComponent(id)}/applications?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`)
 }

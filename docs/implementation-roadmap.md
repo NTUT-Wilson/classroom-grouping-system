@@ -16,7 +16,7 @@ Allowed statuses: **Not Started**, **In Progress**, **Completed**. Mark a slice 
 | 4. Instructions, deadline, and status | Completed | Checkpoint 2026-10-15: frontend 61 tests/build; full Maven 64 tests; packaged-jar Chromium 16, including genuine cutoff, no retries. See [Slice 4](slice-4.md). Whole-batch review/image and operational gates remain open. |
 | 5. Group discovery and first joining | Completed | Checkpoint 2026-10-15: frontend 83 tests/build; full Maven 79 tests; packaged-jar Chromium 18, zero retries. See [Slice 5](slice-5.md). Whole-batch review/image and operational gates remain open. |
 | 6. Applications | Completed | Checkpoint 2026-10-15: frontend 109 tests/build; full Maven 97 tests; packaged-jar Chromium 20, zero retries. See [Slice 6](slice-6.md). Whole-batch review/image and operational gates remain open. |
-| 7. Invitations and combined request behavior | Not Started | Implementation not started. |
+| 7. Invitations and combined request behavior | Completed | Checkpoint 2026-10-15: frontend 136 tests/build; full Maven 121 tests; all 22 packaged-jar Chromium workflows with one worker, zero retries. See [Slice 7](slice-7.md), including the retained initial resource-constrained failure. Whole-batch review/image and operational gates remain open. |
 | 8. Deadline processing and saved allocation plan | Not Started | Implementation not started. |
 | 9. Allocation completion and recovery | Not Started | Implementation not started. |
 | 10. Final result screens | Not Started | Implementation not started. |

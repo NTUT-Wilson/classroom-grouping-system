@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { Requests } from './Requests'
 import * as api from './api'
-vi.mock('./api', async importOriginal => ({ ...await importOriginal<typeof api>(), getGrouping: vi.fn(), getApplications: vi.fn(), decideApplication: vi.fn() }))
+vi.mock('./api', async importOriginal => ({ ...await importOriginal<typeof api>(), getInvitations: vi.fn(), getGrouping: vi.fn(), getApplications: vi.fn(), decideApplication: vi.fn() }))
 const course = { id: 'course', code: 'C', name: 'Course' }
 const applicant = { accountId: 'student', studentId: '00002', studentName: '陳 <script>text</script>', aboutMe: 'Exact\nAbout me 😀' }
 const manager = { accountId: 'manager', studentId: '00001', studentName: 'Alex', aboutMe: 'Manager introduction' }
@@ -11,8 +11,8 @@ const attempt: api.ApplicationAttempt = { id: 'a1', groupId: 'g1', groupName: 'G
 const page: api.ApplicationPage = { activityId: 'activity', status: 'OPEN', items: [attempt], nextCursor: null }
 const discovery: api.GroupDiscovery = { activityId: 'activity', status: 'OPEN', ownGroupId: 'g1', groups: [] }
 beforeEach(() => {
-  vi.resetAllMocks(); vi.mocked(api.getApplications).mockResolvedValue(page); vi.mocked(api.getGrouping).mockResolvedValue(discovery)
-  vi.mocked(api.decideApplication).mockResolvedValue({ ...page, items: [{ ...attempt, status: 'ACCEPTED' }] })
+  vi.resetAllMocks(); vi.mocked(api.getInvitations).mockResolvedValue({ ...page, items: [] }); vi.mocked(api.getApplications).mockResolvedValue(page); vi.mocked(api.getGrouping).mockResolvedValue(discovery)
+  vi.mocked(api.decideApplication).mockImplementation(async () => { const result: api.ApplicationPage = { ...page, items: [{ ...attempt, status: 'ACCEPTED' }] }; vi.mocked(api.getApplications).mockResolvedValue(result); return result })
   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value() { this.setAttribute('open', ''); this.querySelector('button')?.focus() } })
 })
 function mount(accountId = 'manager', expired = vi.fn()) { return render(<Requests course={course} accountId={accountId} expired={expired} />) }
@@ -91,7 +91,7 @@ test('conflict reads current closed history without replay or response actions',
   expect(api.decideApplication).toHaveBeenCalledTimes(1)
 })
 test('successful decision returned after cutoff retains history without exposing assignments', async () => {
-  vi.mocked(api.decideApplication).mockResolvedValue({ ...page, status: 'FINALIZING', items: [{ ...attempt, status: 'ACCEPTED' }] })
+  vi.mocked(api.decideApplication).mockImplementation(async () => { const result: api.ApplicationPage = { ...page, status: 'FINALIZING', items: [{ ...attempt, status: 'ACCEPTED' }] }; vi.mocked(api.getApplications).mockResolvedValue(result); return result })
   vi.mocked(api.getGrouping).mockResolvedValueOnce(discovery).mockResolvedValue({ ...discovery, status: 'FINALIZING', ownGroupId: null })
   const user = userEvent.setup(); mount(); await respond(user)
   await screen.findByText('ACCEPTED')
@@ -116,6 +116,6 @@ test('double confirmation creates one command and pending history is not itself 
   const user = userEvent.setup(); mount(); await user.click(await screen.findByRole('button', { name: 'Approve' }))
   await user.dblClick(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirm approval' }))
   expect(api.decideApplication).toHaveBeenCalledTimes(1)
-  await act(async () => { finish({ ...page, items: [{ ...attempt, status: 'REJECTED' }] }) })
+  vi.mocked(api.getApplications).mockResolvedValue({ ...page, items: [{ ...attempt, status: 'REJECTED' }] }); await act(async () => { finish({ ...page, items: [{ ...attempt, status: 'REJECTED' }] }) })
   await screen.findByText('REJECTED')
 })

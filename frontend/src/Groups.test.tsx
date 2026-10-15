@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { Groups } from './Groups'
 import * as api from './api'
-vi.mock('./api', async importOriginal => ({ ...await importOriginal<typeof api>(), getGrouping: vi.fn(), getApplications: vi.fn(), applyToGroup: vi.fn(), joinEmptyGroup: vi.fn() }))
+vi.mock('./api', async importOriginal => ({ ...await importOriginal<typeof api>(), getInvitations: vi.fn(), getGrouping: vi.fn(), getApplications: vi.fn(), applyToGroup: vi.fn(), joinEmptyGroup: vi.fn() }))
 const course = { id: 'course-one', code: 'C1', name: 'Computing' }
 const own = { accountId: 'own', studentId: '00001', studentName: 'Alex', aboutMe: 'Current own text' }
 const peer = { accountId: 'peer', studentId: '00002', studentName: '陳 <Mina>', aboutMe: '<script>literal</script>\nCurrent introduction' }
@@ -11,10 +11,19 @@ const empty = { id: 'g1', name: 'Group 1', capacity: 2, availablePlaces: 2, mana
 const open: api.GroupDiscovery = { activityId: 'activity', status: 'OPEN', ownGroupId: null, groups: [empty, { id: 'g2', name: 'Group 2', capacity: 2, availablePlaces: 1, manager: peer, members: [peer] }] }
 const joined: api.GroupDiscovery = { ...open, ownGroupId: 'g1', groups: [{ ...empty, availablePlaces: 1, manager: own, members: [own] }, open.groups[1]] }
 beforeEach(() => {
-  vi.resetAllMocks(); vi.mocked(api.getApplications).mockResolvedValue({ activityId: 'activity', status: 'OPEN', items: [], nextCursor: null }); vi.mocked(api.getGrouping).mockResolvedValue(open); vi.mocked(api.joinEmptyGroup).mockResolvedValue(joined)
+  vi.resetAllMocks(); vi.mocked(api.getInvitations).mockResolvedValue({ activityId: 'activity', status: 'OPEN', items: [], nextCursor: null }); vi.mocked(api.getApplications).mockResolvedValue({ activityId: 'activity', status: 'OPEN', items: [], nextCursor: null }); vi.mocked(api.getGrouping).mockResolvedValue(open); vi.mocked(api.joinEmptyGroup).mockResolvedValue(joined)
   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value() { this.setAttribute('open', ''); this.querySelector('button')?.focus() } })
 })
 function mount() { return render(<Groups course={course} accountId="own" expired={vi.fn()} />) }
+test('invitation history must reconcile before uncertain joining can be tried again', async () => {
+  vi.mocked(api.joinEmptyGroup).mockRejectedValueOnce(new TypeError('lost response'))
+  const user = userEvent.setup(); mount(); await confirm(user); await screen.findByRole('alert')
+  vi.mocked(api.getInvitations).mockRejectedValueOnce(new TypeError('history offline'))
+  await user.click(screen.getByRole('button', { name: 'Check current groups' })); await screen.findByRole('alert')
+  expect(screen.queryByRole('button', { name: 'Join Group 1' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Check current groups' })); await screen.findByRole('button', { name: 'Join Group 1' })
+  expect(api.joinEmptyGroup).toHaveBeenCalledTimes(1)
+})
 async function choose(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole('button', { name: 'Join Group 1' }))
   return screen.getByRole('dialog', { name: 'Join Group 1?' })

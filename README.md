@@ -2,7 +2,7 @@
 
 Local implementation of the approved V1 modular monolith. React + Vite + TypeScript, Java 25 / Spring Boot 4.1.1, PostgreSQL, Flyway, and Spring Security with JDBC-backed sessions.
 
-Slice 1 adds provisioned teacher/student course lists and authorized course workspaces to the existing authentication. [Slice 2](docs/slice-2.md) connects profiles/About me; [Slice 3](docs/slice-3.md) adds activity creation; [Slice 4](docs/slice-4.md) adds instruction edits, deadline extensions and safe status reads. [Slice 5](docs/slice-5.md) adds student discovery and deliberate empty-group joining. [Slice 6](docs/slice-6.md) adds private applications, manager decisions and retained history. Invitations, allocation, final results, exports, and administration are **not implemented**. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), [Slice 1 evidence](docs/slice-1.md), and [foundation verification record](docs/foundation.md).
+Slice 1 adds provisioned teacher/student course lists and authorized course workspaces to the existing authentication. [Slice 2](docs/slice-2.md) connects profiles/About me; [Slice 3](docs/slice-3.md) adds activity creation; [Slice 4](docs/slice-4.md) adds instruction edits, deadline extensions and safe status reads. [Slice 5](docs/slice-5.md) adds student discovery and deliberate empty-group joining. [Slice 6](docs/slice-6.md) adds private applications, manager decisions and retained history. [Slice 7](docs/slice-7.md) adds invitations and combined request cleanup. Allocation, final results, exports, and administration are **not implemented**. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), [Slice 1 evidence](docs/slice-1.md), and [foundation verification record](docs/foundation.md).
 
 ## Prerequisites
 
@@ -75,7 +75,7 @@ Students can open the course's Classmates tab (`#/courses/<course-UUID>/classmat
 
 ### Isolated batch browser fixtures
 
-`APP_BATCH_FIXTURE_ENABLED=true` (or `--app.batch-fixture.enabled=true`) separately opts into synthetic BATCH courses for isolated acceptance workflows. Supply `BATCH_FIXTURE_PASSWORD` server-side (12+ characters, at most 72 UTF-8 bytes). Accounts are `batch-teacher` and `batch-student-1` through `batch-student-8`. BATCH-101/505/606 have eight students; BATCH-202/404/405/506 have the first two; BATCH-607 has the first four; BATCH-303 has no students. Setup is additive and idempotent, preserves existing identities/passwords/history, and creates no activities. Use a disposable local database for acceptance journeys and disable the flag after setup. The original DEMO courses remain separate.
+`APP_BATCH_FIXTURE_ENABLED=true` (or `--app.batch-fixture.enabled=true`) separately opts into synthetic BATCH courses for isolated acceptance workflows. Supply `BATCH_FIXTURE_PASSWORD` server-side (12+ characters, at most 72 UTF-8 bytes). Accounts are `batch-teacher` and `batch-student-1` through `batch-student-8`. BATCH-101/505/606/707 have eight students; BATCH-202/404/405/506 have the first two; BATCH-607/708 have the first four; BATCH-303 has no students. Setup is additive and idempotent, preserves existing identities/passwords/history, and creates no activities. Use a disposable local database for acceptance journeys and disable the flag after setup. The original DEMO courses remain separate.
 
 For frontend hot reload, use a second terminal:
 
@@ -98,15 +98,17 @@ cd ../backend
 
 Backend verification requires Docker and uses isolated, automatically cleaned PostgreSQL Testcontainers; it does not use or reset your development database. Tests cover fresh/upgrade migrations, provisioning rollback/repetition/concurrency, role/course authorization, real JDBC sessions, CSRF, expiry/logout/restart behavior, module boundaries, scheduler authorization, and a **test-only** durable deadline probe. The probe does not establish allocation correctness.
 
-With the built backend running, both opt-in setup flags enabled for initial setup, and `DEMO_USERNAME`, `DEMO_PASSWORD`, `ROSTER_TEACHER_PASSWORD`, and `ROSTER_STUDENT_PASSWORD` set in your terminal:
+With the built backend running against a fresh disposable database, all three opt-in setup flags enabled (`APP_DEMO_ENABLED`, `APP_ROSTER_ENABLED`, `APP_BATCH_FIXTURE_ENABLED`), and `DEMO_USERNAME`, `DEMO_PASSWORD`, `ROSTER_TEACHER_PASSWORD`, `ROSTER_STUDENT_PASSWORD`, and `BATCH_FIXTURE_PASSWORD` set in your terminal:
 
 ```powershell
 cd frontend
 npx playwright install chromium
-npm run test:e2e
+npm run test:e2e -- --workers=1
 ```
 
-`E2E_BASE_URL` can override the default `http://127.0.0.1:8080`. Browser tests require a separate identity-free Foundation account plus the documented synthetic roster. They exercise actual teacher/student lists, direct course denial, keyboard/mobile layouts, reload/deep links, login/logout, and lost authentication responses without replay. Read-failure tests inject transport failures around real authenticated sessions. They do not silently skip when credentials or services are missing. Screenshot artifacts are in ignored `frontend/test-results/`.
+The single-worker command runs every test while keeping multiple authenticated actors inside each journey. It fits the verified 8 GB local host; database concurrency uses coordinated independent PostgreSQL connections.
+
+`E2E_BASE_URL` can override the default `http://127.0.0.1:8080`. Browser tests require a separate identity-free Foundation account plus the documented synthetic roster. They exercise teacher/student access, profiles, creation, settings, joining, private requests, actual cutoff, keyboard/mobile layouts, deep links and lost committed responses without replay. Creation journeys require a fresh disposable database for each complete run; retain prior history rather than resetting activities. Use separate fresh databases for jar and image runs. Read-failure tests inject transport failures around real authenticated sessions. They do not silently skip when credentials or services are missing. Screenshot artifacts are in ignored `frontend/test-results/`.
 
 The GitHub Actions workflow runs frontend checks, PostgreSQL-backed backend tests, real-backend Chromium smoke tests, and a Docker build. It contains no deployment step. Its execution on GitHub remains unverified until this repository is pushed and the workflow actually runs.
 

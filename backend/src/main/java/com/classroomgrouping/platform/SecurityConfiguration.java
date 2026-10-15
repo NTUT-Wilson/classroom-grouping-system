@@ -59,6 +59,9 @@ class SecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/api/courses/*/applications").hasRole("STUDENT")
                         .requestMatchers(HttpMethod.POST, "/api/courses/*/groups/*/applications",
                                 "/api/courses/*/applications/*/decision").hasRole("STUDENT")
+                        .requestMatchers(HttpMethod.GET, "/api/courses/*/invitations").hasRole("STUDENT")
+                        .requestMatchers(HttpMethod.POST, "/api/courses/*/groups/*/invitations",
+                                "/api/courses/*/invitations/*/decision").hasRole("STUDENT")
                         .anyRequest().denyAll())
                 .requestCache(cache -> cache.requestCache(new NullRequestCache()))
                 .addFilterBefore(new LoginThrottleFilter(loginAttempts), UsernamePasswordAuthenticationFilter.class)

@@ -12,6 +12,8 @@ public final class GroupingConflict extends RuntimeException {
             case "GROUP_NOT_MANAGED" -> "Apply to an occupied group with a manager.";
             case "APPLICATION_PENDING" -> "You already have a pending application to this group.";
             case "APPLICATION_NOT_PENDING" -> "This application is no longer pending.";
+            case "INVITATION_PENDING" -> "An invitation to this student is already pending.";
+            case "INVITATION_NOT_PENDING" -> "This invitation is no longer pending.";
             default -> throw new IllegalArgumentException("Unknown grouping conflict");
         });
         this.code = code;

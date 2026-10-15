@@ -200,3 +200,25 @@ test('lost decision is never replayed and a new choice obtains fresh CSRF', asyn
   await decideApplication('c/id', 'a/id', { commandKey: 'second', decision: 'REJECT' })
   expect(fetchMock.mock.calls[3]).toEqual(['/api/courses/c%2Fid/applications/a%2Fid/decision', { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': 'fresh', 'Content-Type': 'application/json' }, body: JSON.stringify({ commandKey: 'second', decision: 'REJECT' }) }])
 })
+
+test('invitations history encodes private cursor without mutation', async () => {
+  const page = { activityId: 'a', status: 'OPEN', items: [], nextCursor: null }
+  const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(page))); vi.stubGlobal('fetch', fetchMock)
+  const { getInvitations } = await import('./api')
+  expect(await getInvitations('c/id', 'opaque+/=')).toEqual(page)
+  expect(fetchMock).toHaveBeenCalledWith('/api/courses/c%2Fid/invitations?limit=20&cursor=opaque%2B%2F%3D', { credentials: 'same-origin', cache: 'no-store' })
+})
+test.each([401, 403, 404, 409, 500])('invitation status %s is safe and never replays', async status => {
+  const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'token' }))).mockResolvedValueOnce(new Response(JSON.stringify({ detail: 'private SQL' }), { status })); vi.stubGlobal('fetch', fetchMock)
+  const { inviteClassmate } = await import('./api'); const command = { commandKey: 'new', recipientId: 'student' }
+  await expect(inviteClassmate('c/id', 'g/id', command)).rejects.toMatchObject({ status, message: 'Invitation action could not be confirmed. Refresh requests before choosing another action.' })
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  expect(fetchMock.mock.calls[1]).toEqual(['/api/courses/c%2Fid/groups/g%2Fid/invitations', { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': 'token', 'Content-Type': 'application/json' }, body: JSON.stringify(command) }])
+})
+test('lost invitation response never replays and explicit later choice gets fresh CSRF', async () => {
+  const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'old' }))).mockRejectedValueOnce(new TypeError('lost response')).mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'fresh' }))).mockResolvedValueOnce(new Response(JSON.stringify({ activityId: 'a', status: 'FINALIZING', items: [], nextCursor: null }))); vi.stubGlobal('fetch', fetchMock)
+  const { decideInvitation } = await import('./api')
+  await expect(decideInvitation('c/id', 'i/id', { commandKey: 'first', decision: 'ACCEPT' })).rejects.toThrow('lost response'); expect(fetchMock).toHaveBeenCalledTimes(2)
+  await decideInvitation('c/id', 'i/id', { commandKey: 'second', decision: 'REJECT' })
+  expect(fetchMock.mock.calls[3]).toEqual(['/api/courses/c%2Fid/invitations/i%2Fid/decision', { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': 'fresh', 'Content-Type': 'application/json' }, body: JSON.stringify({ commandKey: 'second', decision: 'REJECT' }) }])
+})
