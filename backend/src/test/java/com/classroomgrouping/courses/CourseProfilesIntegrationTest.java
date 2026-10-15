@@ -238,6 +238,6 @@ class CourseProfilesIntegrationTest {
             else assertEquals(before.get(table), after);
         }
         assertEquals(0, isolated.queryForObject("SELECT count(*) FROM course_introduction", Integer.class));
-        assertEquals(3, isolated.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success", Integer.class));
+        assertEquals(4, isolated.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success", Integer.class));
     }
 }

@@ -105,3 +105,9 @@ The earlier tables remain historical evidence. During authorized Slice 1 impleme
 - **NOT RUN:** remote private GitHub CI/no-cost allowance checks; hosted cold starts, unattended scheduling, monitoring, combined quotas and recovery. Backup arrangements and final resource tuning remain deferred.
 
 The previous local Docker/Testcontainers and revised-image gates now have current passing evidence. Foundation as a whole remains open because hosted feasibility and operational gates remain unresolved. No allocation implementation, cloud provisioning, remote CI execution, or deployment occurred.
+
+## Slices 2–7 local batch — 2026-10-15 (in progress)
+
+Slice 2's current checkpoint passed 33 frontend tests/build, full Java 25 Maven verification (36 tests, no failures/errors/skips, PostgreSQL 17 Testcontainers and ArchUnit), and 13 Chromium workflows against the packaged jar and a separate disposable database. Docker engine 29.7.2 is accessible outside the sandbox; sandbox pipe/network permission failures were resolved by running the authorized checks outside that sandbox, without changing Docker or application security. See [Slice 2 evidence](slice-2.md).
+
+The current batch image/runtime checks and final independent review have not yet run. October 13 image evidence remains historical. Private remote CI/no-cost allowance checks, hosted cold starts, unattended scheduling, monitoring, combined quotas and recovery remain open; backups and final resource tuning remain deferred. The ordinary scheduler still intentionally returns authenticated 501. No local check supplies hosted evidence.

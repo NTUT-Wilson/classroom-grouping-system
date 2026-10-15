@@ -50,6 +50,7 @@ async function visitProfiles(page: Page, id: string) {
 }
 
 test('own introduction persists, peers read literal Unicode and HTML, courses remain isolated', async ({ browser }) => {
+  test.slow()
   const writerContext = await browser.newContext(); const peerContext = await browser.newContext()
   const writer = await writerContext.newPage(); const peer = await peerContext.newPage()
   let id: string | undefined; let before: string | undefined

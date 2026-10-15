@@ -1,6 +1,9 @@
 export type Session = { accountId: string; username: string; role: 'TEACHER' | 'STUDENT' }
 export type Course = { id: string; code: string; name: string }
 export type Classmate = { accountId: string; studentId: string; studentName: string; aboutMe: string }
+export type Activity = { id: string; courseId: string; instructions: string; deadline: string; status: 'OPEN' | 'FINALIZING'; groups: { id: string; ordinal: number; name: string; capacity: number }[] }
+export type ActivityWorkspace = { activity: Activity | null; enrolledCount: number | null }
+export type CreateActivity = { commandKey: string; instructions: string; deadline: string; capacities: number[] }
 type CsrfToken = { headerName: string; token: string }
 let token: CsrfToken | undefined
 
@@ -31,6 +34,21 @@ async function readCourse<T>(url: string): Promise<T> {
 }
 export function listCourses(): Promise<Course[]> { return readCourse('/api/courses') }
 export function getCourse(id: string): Promise<Course> { return readCourse(`/api/courses/${encodeURIComponent(id)}`) }
+export function getActivity(id: string): Promise<ActivityWorkspace> { return readCourse(`/api/courses/${encodeURIComponent(id)}/activity`) }
+export async function createActivity(id: string, command: CreateActivity): Promise<ActivityWorkspace> {
+  if (!token) await refreshCsrf()
+  const csrf = token!
+  token = undefined
+  const response = await fetch(`/api/courses/${encodeURIComponent(id)}/activity`, {
+    method: 'POST', credentials: 'same-origin', headers: { [csrf.headerName]: csrf.token, 'Content-Type': 'application/json' }, body: JSON.stringify(command),
+  })
+  if (!response.ok) throw new ApiError(response.status, response.status === 400
+    ? 'Check the instructions, future Asia/Taipei deadline, and whole-number capacities. Their total must match all currently enrolled students.'
+    : response.status === 401 ? 'Your session expired. Please sign in again.'
+      : response.status === 403 ? 'The request was denied. Refresh your session and check activity status before continuing.'
+        : response.status === 404 ? 'This course is unavailable or you do not have access.' : 'Creation could not be confirmed. Check activity status before trying again.')
+  return response.json() as Promise<ActivityWorkspace>
+}
 export function listClassmates(id: string): Promise<Classmate[]> { return readCourse(`/api/courses/${encodeURIComponent(id)}/classmates`) }
 export function getAboutMe(id: string): Promise<Classmate> { return readCourse(`/api/courses/${encodeURIComponent(id)}/about-me`) }
 export async function saveAboutMe(id: string, aboutMe: string): Promise<Classmate> {

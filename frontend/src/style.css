@@ -113,3 +113,31 @@ body { margin:0; }
 .saved-introduction { border-top:1px solid #dfe6ee; margin-top:20px; padding-top:16px; }
 @media(max-width:1100px) { .people-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:700px) { .people-grid { grid-template-columns:1fr; } .profile-editor { padding:22px; } .profile-editor > .profile-avatar { display:none; } .classmates-heading { align-items:stretch; flex-direction:column; } .classmate-search { width:100%; } .profile-dialog { padding:22px; } .profile-dialog-heading { flex-wrap:wrap; } .editor-meta { flex-wrap:wrap; } }
+.activity-workspace { margin-top:28px; }
+.activity-toolbar { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:20px; }
+.activity-columns { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(240px,1fr); gap:24px; align-items:start; }
+.activity-panel { padding:28px; background:white; border:1px solid #e1e8ee; border-radius:12px; min-width:0; }
+.activity-panel h2 { margin:8px 0 12px; }
+.activity-panel h3 { font-size:14px; margin:24px 0 10px; }
+.activity-panel > p,.activity-guide p { color:#627684; }
+.activity-instructions { white-space:pre-wrap; overflow-wrap:anywhere; margin:20px 0 !important; color:#162d3c !important; }
+.activity-form > label { display:block; margin-top:24px; font-size:12px; font-weight:600; }
+.activity-form textarea,.activity-form input { width:100%; min-width:0; border:1px solid #d6dfe7; border-radius:8px; padding:12px; margin-top:7px; font:inherit; color:#162d3c; background:white; }
+.activity-form textarea { resize:vertical; }
+.activity-form fieldset { border:0; border-top:1px solid #e1e8ee; padding:20px 0 0; margin:28px 0 0; min-width:0; }
+.activity-form legend { padding:0 12px 0 0; font-weight:600; }
+.activity-hint { color:#627684; font-size:12px; margin-top:8px !important; }
+.capacity-entry { display:flex; gap:12px; align-items:end; margin:16px 0; }
+.capacity-entry label { flex:1; min-width:0; font-size:12px; font-weight:600; }
+.capacity-total { margin-top:16px !important; color:#315dd1; font-weight:600; }
+.capacity-list { padding:0; list-style:none; margin:12px 0; }
+.capacity-list li { display:flex; justify-content:space-between; gap:16px; padding:10px 0; border-bottom:1px solid #edf0f5; }
+.activity-setting { border-top:1px solid #e1e8ee; padding-top:20px; margin-top:20px; }
+.activity-setting > strong,.activity-setting time { display:block; }
+.activity-setting time { margin-top:8px; font-size:12px; }
+.activity-guide { padding:28px 12px; }
+.activity-guide h3 { font-size:14px; margin:28px 0 8px; }
+.activity-guide > p { margin-top:14px; }
+.activity-review { max-width:850px; }
+@media(max-width:900px) { .activity-columns { grid-template-columns:minmax(0,1fr); } .activity-guide { padding:12px; } }
+@media(max-width:700px) { .activity-panel { padding:22px; } .activity-toolbar { flex-wrap:wrap; } .activity-setting time { overflow-wrap:anywhere; } }

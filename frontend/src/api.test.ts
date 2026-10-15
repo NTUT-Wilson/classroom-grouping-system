@@ -81,3 +81,29 @@ test('profile PUT uses JSON and CSRF once; a lost response never replays', async
   expect(await getAboutMe('course')).toMatchObject({ studentId: '00001', aboutMe: 'exact\ntext' })
   expect(fetchMock.mock.calls.filter(call => call[1]?.method === 'PUT')).toHaveLength(1)
 })
+
+test.each([403, 500])('creation POST status %s is never replayed and carries explicit UUID and exact JSON', async status => {
+  const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'creation-token' })))
+    .mockResolvedValueOnce(new Response(null, { status }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ activity: null, enrolledCount: 6 })))
+  vi.stubGlobal('fetch', fetchMock)
+  const { createActivity, getActivity } = await import('./api')
+  const command = { commandKey: '11111111-1111-4111-8111-111111111111', instructions: 'Exact\ntext  ', deadline: '2099-10-20T10:00:00+08:00', capacities: [2, 4] }
+  await expect(createActivity('course', command)).rejects.toMatchObject({ status })
+  expect(fetchMock.mock.calls[1]).toEqual(['/api/courses/course/activity', { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': 'creation-token', 'Content-Type': 'application/json' }, body: JSON.stringify(command) }])
+  expect(await getActivity('course')).toEqual({ activity: null, enrolledCount: 6 })
+  expect(fetchMock.mock.calls.filter(call => call[1]?.method === 'POST')).toHaveLength(1)
+})
+test('lost creation response is not replayed and an explicit later attempt obtains fresh CSRF', async () => {
+  const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'old' })))
+    .mockRejectedValueOnce(new TypeError('lost response'))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'new' })))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ activity: { id: 'a' }, enrolledCount: null })))
+  vi.stubGlobal('fetch', fetchMock)
+  const { createActivity } = await import('./api')
+  const command = { commandKey: 'first', instructions: 'Task', deadline: '2099-10-20T10:00:00+08:00', capacities: [2] }
+  await expect(createActivity('course', command)).rejects.toThrow('lost response')
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  await expect(createActivity('course', { ...command, commandKey: 'second' })).resolves.toMatchObject({ activity: { id: 'a' } })
+  expect(fetchMock.mock.calls[3][1].headers).toMatchObject({ 'X-CSRF-TOKEN': 'new' })
+})

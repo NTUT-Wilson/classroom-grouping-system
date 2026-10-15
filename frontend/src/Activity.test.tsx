@@ -1,0 +1,130 @@
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, expect, test, vi } from 'vitest'
+import { CourseActivity, capacityError, instructionsError, taipeiDeadline } from './Activity'
+import * as api from './api'
+vi.mock('./api', async importOriginal => ({ ...await importOriginal<typeof api>(), getActivity: vi.fn(), createActivity: vi.fn() }))
+const course = { id: 'course-one', code: 'C1', name: 'Computing' }
+const activity: api.Activity = { id: 'a', courseId: course.id, instructions: '<script>plain</script>\nKeep spaces  ', deadline: '2099-10-20T02:00:00Z', status: 'OPEN', groups: [{ id: 'g1', ordinal: 1, name: 'Group 1', capacity: 2 }, { id: 'g2', ordinal: 2, name: 'Group 2', capacity: 4 }] }
+beforeEach(() => {
+  vi.resetAllMocks()
+  vi.mocked(api.getActivity).mockResolvedValue({ activity: null, enrolledCount: 6 })
+  vi.mocked(api.createActivity).mockResolvedValue({ activity, enrolledCount: null })
+})
+async function setup() {
+  const user = userEvent.setup()
+  render(<CourseActivity course={course} role="TEACHER" expired={vi.fn()} />)
+  await user.click(await screen.findByRole('button', { name: 'Create activity' }))
+  await user.type(screen.getByLabelText('Instructions'), 'Task <script>plain</script>\nKeep spaces  ')
+  await user.type(screen.getByLabelText('Group 1 capacity'), '2')
+  await user.click(screen.getByRole('button', { name: 'Add group' }))
+  await user.type(screen.getByLabelText('Group 2 capacity'), '4')
+  // Browser datetime-local input supplies a wall time, never a device-local instant.
+  const { fireEvent } = await import('@testing-library/react')
+  fireEvent.change(screen.getByLabelText('Deadline (Asia/Taipei)'), { target: { value: '2099-10-20T10:00' } })
+  await user.click(screen.getByRole('button', { name: 'Review activity' }))
+  return user
+}
+test('validates nonblank Unicode plain text by code points and rejects unpaired surrogates and NUL', () => {
+  expect(instructionsError('😀'.repeat(5000))).toBe('')
+  expect(instructionsError('😀'.repeat(5001))).toContain('5,000')
+  for (const blank of ['', ' \r\n\t', '\u0085\u00a0\u001c\ufeff']) expect(instructionsError(blank)).toContain('Enter')
+  for (const invalid of ['a\0b', '\ud800', '\udfff']) expect(instructionsError(invalid)).toContain('valid plain text')
+  expect(instructionsError('e\u0301\n <b> literal </b> ')).toBe('')
+})
+test('manual capacities require a nonempty integer layout and exact enrollment total without adjustment', () => {
+  expect(capacityError(['2', '4'], 6)).toBe('')
+  for (const layout of [[], [''], ['1', '5'], ['2.5', '3.5'], ['2e0', '4'], ['+2', '4'], ['2 ', '4'], ['3', '4'], ['999999999999999999999']]) expect(capacityError(layout, 6)).not.toBe('')
+  expect(capacityError(['2'], 1)).toContain('At least two')
+})
+test('Taipei wall time has a fixed offset independent of device timezone and rejects impossible dates', () => {
+  expect(taipeiDeadline('2099-10-20T10:00')).toBe('2099-10-20T10:00:00+08:00')
+  expect(Date.parse(taipeiDeadline('2099-10-20T10:00')!)).toBe(Date.parse('2099-10-20T02:00:00Z'))
+  for (const value of ['', '2099-02-30T10:00', '2099-13-01T10:00', '2099-10-20T24:00', '2099-10-20T10:00Z']) expect(taipeiDeadline(value)).toBeNull()
+})
+test('creation requires explicit review and confirmation, preserves ordered layout/text and sends fresh UUID command', async () => {
+  const user = await setup()
+  expect(screen.getByRole('heading', { name: 'Ready to open grouping?' })).toHaveFocus()
+  expect(api.createActivity).not.toHaveBeenCalled()
+  expect(screen.getByText(/20 Oct 2099, 10:00/)).toHaveTextContent('Asia/Taipei')
+  expect(screen.getAllByRole('listitem').map(item => item.textContent)).toEqual(['Group 12 places', 'Group 24 places'])
+  await user.click(screen.getByRole('button', { name: 'Back to setup' }))
+  expect(screen.getByLabelText('Instructions')).toHaveValue('Task <script>plain</script>\nKeep spaces  ')
+  await user.click(screen.getByRole('button', { name: 'Review activity' }))
+  await user.click(screen.getByRole('button', { name: 'Confirm create activity' }))
+  await screen.findByText('Activity created. It is now visible to course participants.')
+  expect(api.createActivity).toHaveBeenCalledExactlyOnceWith(course.id, { commandKey: expect.stringMatching(/^[0-9a-f-]{36}$/), instructions: 'Task <script>plain</script>\nKeep spaces  ', deadline: '2099-10-20T10:00:00+08:00', capacities: [2, 4] })
+  expect(screen.queryByRole('button', { name: 'Create activity' })).not.toBeInTheDocument()
+})
+test('uncertain creation blocks resubmission until a successful read shows committed activity', async () => {
+  vi.mocked(api.createActivity).mockRejectedValueOnce(new TypeError('lost response'))
+  const user = await setup()
+  await user.click(screen.getByRole('button', { name: 'Confirm create activity' }))
+  await screen.findByText('Check before continuing')
+  expect(screen.queryByRole('button', { name: 'Confirm create activity' })).not.toBeInTheDocument()
+  vi.mocked(api.getActivity).mockRejectedValueOnce(new Error('unavailable'))
+  await user.click(screen.getByRole('button', { name: 'Check activity' }))
+  await screen.findByText('Activity unavailable')
+  expect(api.createActivity).toHaveBeenCalledTimes(1)
+  vi.mocked(api.getActivity).mockResolvedValueOnce({ activity, enrolledCount: null })
+  await user.click(screen.getByRole('button', { name: 'Check activity' }))
+  await screen.findByText('Current activity checked.')
+  expect(screen.getByText('<script>plain</script> Keep spaces', { exact: false })).toBeInTheDocument()
+  expect(api.createActivity).toHaveBeenCalledTimes(1)
+})
+test('an absent reconciliation preserves draft but requires a new review and a new command key', async () => {
+  vi.mocked(api.createActivity).mockRejectedValueOnce(new Error('uncertain'))
+  const user = await setup()
+  await user.click(screen.getByRole('button', { name: 'Confirm create activity' }))
+  await user.click(await screen.findByRole('button', { name: 'Check activity' }))
+  await screen.findByText('No activity is saved. Review your setup before a new explicit creation attempt.')
+  expect(screen.getByLabelText('Group 2 capacity')).toHaveValue('4')
+  expect(api.createActivity).toHaveBeenCalledTimes(1)
+  await user.click(screen.getByRole('button', { name: 'Review activity' }))
+  await user.click(screen.getByRole('button', { name: 'Confirm create activity' }))
+  await waitFor(() => expect(api.createActivity).toHaveBeenCalledTimes(2))
+  expect(vi.mocked(api.createActivity).mock.calls[0][1].commandKey).not.toBe(vi.mocked(api.createActivity).mock.calls[1][1].commandKey)
+})
+test('backend validation returns correction feedback without success or automatic resubmission', async () => {
+  vi.mocked(api.createActivity).mockRejectedValueOnce(new api.ApiError(400, 'Enrollment changed. Check capacities.'))
+  const user = await setup()
+  await user.click(screen.getByRole('button', { name: 'Confirm create activity' }))
+  await screen.findByText('Enrollment changed. Check capacities.')
+  expect(screen.getByLabelText('Instructions')).toHaveValue('Task <script>plain</script>\nKeep spaces  ')
+  expect(api.createActivity).toHaveBeenCalledTimes(1)
+})
+test('student sees escaped current instructions and fixed capacities with no mutation or membership controls', async () => {
+  vi.mocked(api.getActivity).mockResolvedValue({ activity: { ...activity, status: 'FINALIZING' }, enrolledCount: null })
+  const { container } = render(<CourseActivity course={course} role="STUDENT" expired={vi.fn()} />)
+  await screen.findByRole('heading', { name: 'Activity instructions' })
+  expect(container.querySelector('script')).toBeNull()
+  expect(screen.getByText(/Grouping is closed/)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Create|Join|Apply|Edit|result/i })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Refresh activity' })).toBeInTheDocument()
+})
+test('empty student activity and low-enrollment teacher state never offer creation', async () => {
+  vi.mocked(api.getActivity).mockResolvedValue({ activity: null, enrolledCount: 1 })
+  const { unmount } = render(<CourseActivity course={course} role="STUDENT" expired={vi.fn()} />)
+  await screen.findByText('No grouping activity yet')
+  expect(screen.queryByRole('button', { name: 'Create activity' })).not.toBeInTheDocument()
+  unmount()
+  render(<CourseActivity course={course} role="TEACHER" expired={vi.fn()} />)
+  expect(await screen.findByRole('button', { name: 'Create activity' })).toBeDisabled()
+})
+test.each([403, 404])('security rejection %s removes setup and requires a read rather than input correction', async status => {
+  vi.mocked(api.createActivity).mockRejectedValueOnce(new api.ApiError(status, 'Access denied'))
+  const user = await setup()
+  await user.click(screen.getByRole('button', { name: 'Confirm create activity' }))
+  await screen.findByText('Activity unavailable')
+  expect(screen.queryByLabelText('Instructions')).not.toBeInTheDocument()
+  expect(api.createActivity).toHaveBeenCalledTimes(1)
+})
+test('expired read requires authentication and discloses no activity', async () => {
+  vi.mocked(api.getActivity).mockRejectedValueOnce(new api.ApiError(401, 'expired'))
+  const expired = vi.fn()
+  render(<CourseActivity course={course} role="STUDENT" expired={expired} />)
+  await waitFor(() => expect(expired).toHaveBeenCalledTimes(1))
+  expect(screen.queryByText(activity.instructions)).not.toBeInTheDocument()
+})
+
+

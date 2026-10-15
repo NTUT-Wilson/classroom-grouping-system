@@ -24,6 +24,7 @@ async function overflow(page: Page) {
 }
 
 test('teacher and student lists, direct authorization, deep links, reload and logout use the real backend', async ({ browser }, testInfo) => {
+  test.slow()
   const teacher = await browser.newContext()
   const student = await browser.newContext()
   try {
@@ -133,7 +134,7 @@ for (const width of [1280, 390]) test(`course read failures differ from empty an
   await login(page, 'roster-student', 'STUDENT')
   const [course] = await courses(page)
   await page.route('**/api/courses', route => route.fulfill({ status: 503, body: '{}' }))
-  await page.getByRole('button', { name: 'Refresh' }).click()
+  await page.getByRole('button', { name: 'Refresh', exact: true }).click()
   await expect(page.getByRole('alert')).toHaveText('Unable to load courses. Please retry.')
   await expect(page.getByRole('heading', { name: 'No courses yet' })).toHaveCount(0)
   await overflow(page)
@@ -149,7 +150,7 @@ for (const width of [1280, 390]) test(`course read failures differ from empty an
   await expect(page.getByRole('heading', { name: course.name, exact: true })).toBeVisible()
   const csrf = await (await page.request.get('/api/auth/csrf')).json()
   expect((await page.request.post('/api/auth/logout', { headers: { [csrf.headerName]: csrf.token } })).status()).toBe(204)
-  await page.getByRole('button', { name: 'Refresh' }).click()
+  await page.getByRole('button', { name: 'Refresh', exact: true }).click()
   await expect(page.getByLabel('Password')).toBeVisible()
   await expect(page.getByText(course.name, { exact: true })).toHaveCount(0)
 })

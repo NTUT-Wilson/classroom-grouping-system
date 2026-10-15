@@ -2,7 +2,7 @@
 
 Local implementation of the approved V1 modular monolith. React + Vite + TypeScript, Java 25 / Spring Boot 4.1.1, PostgreSQL, Flyway, and Spring Security with JDBC-backed sessions.
 
-Slice 1 adds provisioned teacher/student course lists and authorized course workspaces to the existing authentication. Slice 2 connects student classmate profiles and course-specific About me; its current verification is recorded in [Slice 2 evidence](docs/slice-2.md). Grouping, requests, allocation, final results, exports, and administration are **not implemented**. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), [Slice 1 evidence](docs/slice-1.md), and [foundation verification record](docs/foundation.md).
+Slice 1 adds provisioned teacher/student course lists and authorized course workspaces to the existing authentication. [Slice 2](docs/slice-2.md) connects student profiles and course-specific About me. [Slice 3](docs/slice-3.md) adds assigned-teacher activity creation with fixed participants, manual capacities and Taipei deadlines. Student joining, requests, allocation, final results, exports, and administration are **not implemented**. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), [Slice 1 evidence](docs/slice-1.md), and [foundation verification record](docs/foundation.md).
 
 ## Prerequisites
 
