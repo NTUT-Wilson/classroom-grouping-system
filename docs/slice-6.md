@@ -1,12 +1,12 @@
 # Slice 6 — Applications
 
-Implemented and checkpoint-verified on 2026-10-15 after Slice 5. Whole-batch image/runtime checks and fresh independent review remain separate.
+Implemented and checkpoint-verified on 2026-10-15 after Slice 5. Whole-batch verification and three independent reviews are complete; see [batch evidence](slices-2-7.md).
 
 Ungrouped participants apply to occupied, managed groups with space. Pending applications reserve no places. Managers alone approve or reject their group's applications; a rejected student can make a new eligible attempt while earlier outcomes remain readable. Application history is private to the applicant and recorded target manager, with current course/participant authorization on every cursor page.
 
 Forward migration V6 introduces a separate authoritative application-attempt table, pending-pair uniqueness, same-activity references and indexed history ordered by immutable creation time and attempt ID. Cursor scope binds course and actor; the query independently enforces the party predicate. Pages default to 20 and accept 1–50 items, without an aggregate cap or history deletion.
 
-All commands use READ COMMITTED and the activity lock, reread current authorization and eligibility after waiting, and check database wall time immediately before the domain write. Approval shares the joining writer with first joining: membership, accepted outcome, cancellation of the student's other pending applications, newly full group cleanup and the success receipt commit together. Cancellation reasons distinguish “Joined a group” from “Group full”. Completed outcomes and other activities are preserved. Slice 7 will extend the same writer for invitations.
+All commands use READ COMMITTED and the activity lock, reread current authorization and eligibility after waiting, and check database wall time immediately before the domain write. Approval shares the joining writer with first joining: membership, accepted outcome, cancellation of the student's other pending applications, newly full group cleanup and the success receipt commit together. Cancellation reasons distinguish “Joined a group” from “Group full”. Completed outcomes and other activities are preserved. Slice 7 extends the same writer for invitations.
 
 The Courses public access projection owns enrollment eligibility; Grouping does not query Courses or Identity tables. Narrow session DTOs reject unknown fields. Receipts reauthorize and return current permitted information on replay. At cutoff all student mutations, including rejection, stop; history derives EXPIRED for pending rows without persisting expiry or implementing deadline processing.
 

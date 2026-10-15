@@ -1,6 +1,6 @@
 # Slice 2 — Classmate profiles
 
-Implemented and checkpoint-verified on 2026-10-15 as the first part of the authorized Slices 2–7 batch. The PRD and approved technical stack govern behavior. Whole-batch independent review is still pending. No deployment, remote CI or hosting validation is claimed.
+Implemented and checkpoint-verified on 2026-10-15 as the first part of the authorized Slices 2–7 batch. The PRD and approved technical stack govern behavior. Whole-batch verification and three independent reviews are complete; see [batch evidence](slices-2-7.md). No deployment, remote CI or hosting validation is claimed.
 
 ## Implementation
 

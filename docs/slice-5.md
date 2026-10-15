@@ -1,6 +1,6 @@
 # Slice 5 — Discovery and first joining
 
-Implemented and checkpoint-verified on 2026-10-15 after Slice 4. Whole-batch independent review and image/runtime checks remain separate.
+Implemented and checkpoint-verified on 2026-10-15 after Slice 4. Whole-batch verification and three independent reviews are complete; see [batch evidence](slices-2-7.md).
 
 Students with current course access and fixed activity participation can inspect groups, availability, permitted member profiles and manager identity before cutoff. Teachers cannot access this discovery endpoint. Closed projections contain no group roster or own assignment; classmate profiles and introduction editing remain available.
 

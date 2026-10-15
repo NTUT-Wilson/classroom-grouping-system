@@ -1,6 +1,6 @@
 # Slice 3 — Activity creation
 
-Implemented and checkpoint-verified on 2026-10-15 after Slice 2. Whole-batch independent review and image/runtime checks remain pending.
+Implemented and checkpoint-verified on 2026-10-15 after Slice 2. Whole-batch verification and three independent reviews are complete; see [batch evidence](slices-2-7.md).
 
 ## Implementation and decisions
 

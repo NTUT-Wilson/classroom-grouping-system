@@ -1,6 +1,6 @@
 # Slice 4 — Instructions, deadline and status
 
-Implemented and checkpoint-verified on 2026-10-15 after Slice 3. Whole-batch independent review and image/runtime checks remain pending.
+Implemented and checkpoint-verified on 2026-10-15 after Slice 3. Whole-batch verification and three independent reviews are complete; see [batch evidence](slices-2-7.md).
 
 ## Behavior and integrity
 
