@@ -1,8 +1,8 @@
 # Classroom Grouping
 
-Minimal local foundation for the approved V1 modular monolith. React + Vite + TypeScript, Java 25 / Spring Boot 4.1.1, PostgreSQL, Flyway, and Spring Security with JDBC-backed sessions.
+Local implementation of the approved V1 modular monolith. React + Vite + TypeScript, Java 25 / Spring Boot 4.1.1, PostgreSQL, Flyway, and Spring Security with JDBC-backed sessions.
 
-The foundation includes authentication plumbing and a small sign-in shell. Course management, grouping, requests, allocation, final results, and CSV exports are **not implemented**. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), and [foundation verification record](docs/foundation.md).
+Slice 1 adds provisioned teacher/student course lists and authorized course workspaces to the existing authentication. Grouping, profiles/About me, requests, allocation, final results, exports, and administration are **not implemented**. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), [Slice 1 evidence](docs/slice-1.md), and [foundation verification record](docs/foundation.md).
 
 ## Prerequisites
 
@@ -51,7 +51,25 @@ cd backend
 
 Open **http://127.0.0.1:8080/**. Spring Boot serves the built frontend and API together. The local profile is explicitly restricted to development: cookies are insecure only there, and the host process binds to loopback. Production defaults use Secure, HttpOnly, host-only, SameSite=Lax session cookies and require database environment settings.
 
-Demo setup is disabled by default. It creates only a foundation authentication account, with a bcrypt hash. Rerunning it does not overwrite the account or password. Keep the password used on first setup; changing the environment value does not reset an existing account. No courses, enrollments, student profiles, or grouping activities are seeded yet. Demo passwords must contain at least 12 characters and remain within bcrypt's 72-byte limit.
+Foundation demo setup is disabled by default. It creates only an authentication account, with a bcrypt hash. Rerunning it does not overwrite the account or password. Keep the password used on first setup; changing the environment value does not reset an existing account. This legacy account receives no inferred Student ID, name, or course access. Demo passwords must contain at least 12 characters and remain within bcrypt's 72-byte limit.
+
+### Opt-in course workspace roster
+
+The synthetic roster is separate from the Foundation account and disabled by default. Before starting the backend, opt in and supply both passwords on the server:
+
+```powershell
+$env:APP_ROSTER_ENABLED = 'true'
+$env:ROSTER_TEACHER_PASSWORD = Read-Host -Prompt 'Synthetic teacher password (12+ characters)' -MaskInput
+$env:ROSTER_STUDENT_PASSWORD = Read-Host -Prompt 'Synthetic student password (12+ characters)' -MaskInput
+```
+
+`roster-teacher` and `roster-student` access DEMO-101 (Synthetic Classroom).
+`roster-other-teacher` and `roster-other-student` access DEMO-202 (Another Synthetic Classroom).
+`roster-empty-student` has no enrollments. Teacher accounts use the configured teacher password; student accounts use the student password. All identities are synthetic; the stored Student IDs are text with leading zeros.
+
+Provisioning validates the entire roster and commits atomically. Repeated setup preserves account UUIDs, passwords, identities, and existing relationships; it adds required missing relationships without removing existing ones. Conflicting roles, identities, or course metadata reject setup without partial roster changes. Setup locks course rows before relationship writes, for compatibility with future activity snapshots. No grouping activity is created. Disable opt-in flags after setup; existing accounts remain usable. No plaintext password is built into this roster.
+
+Select a course through the cards or revisit `http://127.0.0.1:8080/#/courses/<course-UUID>`. Hash links restore after login or reload; the backend rechecks authorization on every course read. Unknown and unauthorized courses receive identical safe feedback.
 
 For frontend hot reload, use a second terminal:
 
@@ -72,9 +90,9 @@ cd ../backend
 .\mvnw.cmd verify
 ```
 
-Backend verification requires Docker and uses an isolated, automatically cleaned PostgreSQL Testcontainer; it does not use or reset your development database. Tests cover Flyway/JPA startup, real JDBC sessions, CSRF, expiry/logout/restart behavior, scheduler authorization, module boundaries, and a **test-only** durable deadline probe. They do not establish business-feature correctness.
+Backend verification requires Docker and uses isolated, automatically cleaned PostgreSQL Testcontainers; it does not use or reset your development database. Tests cover fresh/upgrade migrations, provisioning rollback/repetition/concurrency, role/course authorization, real JDBC sessions, CSRF, expiry/logout/restart behavior, module boundaries, scheduler authorization, and a **test-only** durable deadline probe. The probe does not establish allocation correctness.
 
-With the built backend running and the same demo credentials set in your terminal:
+With the built backend running, both opt-in setup flags enabled for initial setup, and `DEMO_USERNAME`, `DEMO_PASSWORD`, `ROSTER_TEACHER_PASSWORD`, and `ROSTER_STUDENT_PASSWORD` set in your terminal:
 
 ```powershell
 cd frontend
@@ -82,7 +100,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-`E2E_BASE_URL` can override the default `http://127.0.0.1:8080`. Browser tests exercise actual same-origin sign-in, reload, and logout. They require the real backend; they do not silently skip when credentials or services are missing.
+`E2E_BASE_URL` can override the default `http://127.0.0.1:8080`. Browser tests require a separate identity-free Foundation account plus the documented synthetic roster. They exercise actual teacher/student lists, direct course denial, keyboard/mobile layouts, reload/deep links, login/logout, and lost authentication responses without replay. Read-failure tests inject transport failures around real authenticated sessions. They do not silently skip when credentials or services are missing. Screenshot artifacts are in ignored `frontend/test-results/`.
 
 The GitHub Actions workflow runs frontend checks, PostgreSQL-backed backend tests, real-backend Chromium smoke tests, and a Docker build. It contains no deployment step. Its execution on GitHub remains unverified until this repository is pushed and the workflow actually runs.
 
@@ -96,6 +114,43 @@ docker compose --profile app up -d --wait app
 Compose's optional app profile publishes only loopback port 8080 and uses the local profile. Set demo environment variables before starting it if sign-in is desired. It connects to `db:5432` inside Docker. The runtime image contains only the Java runtime, application jar, and built React assets and runs as UID 10001.
 
 No cloud deployment or provider provisioning has been performed. Render Free, Neon Free, external scheduler selection, quotas, monitoring, and backup arrangements remain subject to the approved validation gates.
+
+The remaining hosted checks and account-access requirements are recorded in
+[hosting-validation.md](docs/hosting-validation.md). The scheduler's 501 response
+must never be treated as proof that deadline work completed.
+
+## Password-hashing measurement
+
+The existing Spring Security bcrypt strength remains unchanged. To measure it
+with synthetic input after compiling the tests:
+
+```powershell
+cd backend
+.\mvnw.cmd -DskipTests test-compile dependency:build-classpath -Dmdep.includeScope=test -Dmdep.outputFile=target/benchmark-classpath.txt
+$benchmarkDependencies = (Get-Content target/benchmark-classpath.txt -Raw).Trim()
+java -cp "target/test-classes;$benchmarkDependencies" com.classroomgrouping.platform.PasswordHashBenchmark
+```
+
+This prints timings and the work factor, not credentials or hashes. It is a manual
+measurement, not a pass/fail performance threshold. Repeat on the chosen hosted
+hardware before final runtime tuning.
+
+The default backend tests require Docker. For supplementary recovery verification
+on Windows when Docker cannot start, `FoundationRecoveryTest` also supports an
+explicit native PostgreSQL mode. Point it **only at a disposable PostgreSQL 17
+cluster**: the test creates foundation/probe data and restarts that cluster.
+
+```powershell
+.\mvnw.cmd -Dtest=FoundationRecoveryTest -Dfoundation.test.native=true `
+  '-Dfoundation.test.jdbc.url=jdbc:postgresql://127.0.0.1:55433/postgres' `
+  '-Dfoundation.test.jdbc.user=your-disposable-user' `
+  '-Dfoundation.test.jdbc.password=your-disposable-password' `
+  '-Dfoundation.test.pgctl=C:\Program Files\PostgreSQL\17\bin\pg_ctl.exe' `
+  '-Dfoundation.test.pgdata=C:\absolute\path\to\disposable\data' test
+```
+
+These tests use the real database; they do not replace the required Testcontainers
+suite or prove hosted behavior.
 
 ## Scheduler contract and configuration
 
