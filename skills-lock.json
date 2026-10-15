@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "feature-orchestrator": {
+      "source": "ski043/skills",
+      "sourceType": "github",
+      "skillPath": "skills/feature-orchestrator/SKILL.md",
+      "computedHash": "9bab9d6a484f193cb1bd2944d9e85b00c37fc2f0107f873f31b9e0fc52a776d4"
+    }
+  }
+}
