@@ -198,7 +198,7 @@ class CourseWorkspaceIntegrationTest {
             assertEquals(oldHash, upgradedJdbc.queryForObject("SELECT password_hash FROM app_account WHERE username='upgrade-legacy'", String.class));
             assertTrue(encoder.matches("upgrade-original-password", oldHash));
             assertEquals("[]", request(client, upgradedPort, "/api/courses", "GET", "", null).body());
-            assertEquals(2, upgradedJdbc.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success", Integer.class));
+            assertEquals(3, upgradedJdbc.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success", Integer.class));
         }
     }
 }

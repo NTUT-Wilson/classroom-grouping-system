@@ -68,3 +68,16 @@ test('expired course session is reported as 401 for reconciliation', async () =>
   const { listCourses } = await import('./api')
   await expect(listCourses()).rejects.toMatchObject({ status: 401 })
 })
+
+test('profile PUT uses JSON and CSRF once; a lost response never replays', async () => {
+  const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'profile-token' })))
+    .mockRejectedValueOnce(new TypeError('lost response'))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ accountId: 'own', studentId: '00001', studentName: 'Alex', aboutMe: 'exact\ntext' })))
+  vi.stubGlobal('fetch', fetchMock)
+  const { saveAboutMe, getAboutMe } = await import('./api')
+  await expect(saveAboutMe('course', 'exact\ntext')).rejects.toThrow('lost response')
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  expect(fetchMock.mock.calls[1]).toEqual(['/api/courses/course/about-me', { method: 'PUT', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': 'profile-token', 'Content-Type': 'application/json' }, body: JSON.stringify({ aboutMe: 'exact\ntext' }) }])
+  expect(await getAboutMe('course')).toMatchObject({ studentId: '00001', aboutMe: 'exact\ntext' })
+  expect(fetchMock.mock.calls.filter(call => call[1]?.method === 'PUT')).toHaveLength(1)
+})

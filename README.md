@@ -2,7 +2,7 @@
 
 Local implementation of the approved V1 modular monolith. React + Vite + TypeScript, Java 25 / Spring Boot 4.1.1, PostgreSQL, Flyway, and Spring Security with JDBC-backed sessions.
 
-Slice 1 adds provisioned teacher/student course lists and authorized course workspaces to the existing authentication. Grouping, profiles/About me, requests, allocation, final results, exports, and administration are **not implemented**. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), [Slice 1 evidence](docs/slice-1.md), and [foundation verification record](docs/foundation.md).
+Slice 1 adds provisioned teacher/student course lists and authorized course workspaces to the existing authentication. Slice 2 connects student classmate profiles and course-specific About me; its current verification is recorded in [Slice 2 evidence](docs/slice-2.md). Grouping, requests, allocation, final results, exports, and administration are **not implemented**. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), [Slice 1 evidence](docs/slice-1.md), and [foundation verification record](docs/foundation.md).
 
 ## Prerequisites
 
@@ -70,6 +70,12 @@ $env:ROSTER_STUDENT_PASSWORD = Read-Host -Prompt 'Synthetic student password (12
 Provisioning validates the entire roster and commits atomically. Repeated setup preserves account UUIDs, passwords, identities, and existing relationships; it adds required missing relationships without removing existing ones. Conflicting roles, identities, or course metadata reject setup without partial roster changes. Setup locks course rows before relationship writes, for compatibility with future activity snapshots. No grouping activity is created. Disable opt-in flags after setup; existing accounts remain usable. No plaintext password is built into this roster.
 
 Select a course through the cards or revisit `http://127.0.0.1:8080/#/courses/<course-UUID>`. Hash links restore after login or reload; the backend rechecks authorization on every course read. Unknown and unauthorized courses receive identical safe feedback.
+
+Students can open the course's Classmates tab (`#/courses/<course-UUID>/classmates`), read names, exact textual Student IDs and introductions, and save their own About me for that course. Text is optional, preserved as plain text, and limited to 500 Unicode code points. Profiles contain no grouping assignments. A save whose response is lost must be checked through the read-only reconciliation button before another explicit save.
+
+### Isolated batch browser fixtures
+
+`APP_BATCH_FIXTURE_ENABLED=true` (or `--app.batch-fixture.enabled=true`) separately opts into synthetic BATCH-101, BATCH-202 and BATCH-303 courses. Supply `BATCH_FIXTURE_PASSWORD` server-side (12+ characters, at most 72 UTF-8 bytes). Accounts are `batch-teacher` and `batch-student-1` through `batch-student-8`. BATCH-101 has eight students; BATCH-202 has the first two; BATCH-303 has no students. Setup is additive and idempotent, preserves existing identities/passwords/history, and creates no activities. Use a disposable local database for acceptance journeys and disable the flag after setup. The original DEMO courses remain separate.
 
 For frontend hot reload, use a second terminal:
 

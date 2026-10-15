@@ -11,7 +11,7 @@ Allowed statuses: **Not Started**, **In Progress**, **Completed**. Mark a slice 
 | Slice | Status | Verification evidence / remaining work |
 |---|---|---|
 | 1. Accounts and course workspace | Completed | Local acceptance 2026-10-13: frontend 25 tests/build; full Maven 27 PostgreSQL/ArchUnit tests; jar and image Chromium 8 each; prototype 7; two fresh independent reviewers. See [Slice 1 evidence](slice-1.md). Remote CI/hosting remain open; preserved baseline must be settled before publishing. |
-| 2. Classmate profiles | Not Started | Implementation not started. |
+| 2. Classmate profiles | Completed | Checkpoint 2026-10-15: frontend 33 tests/build; full Maven 36 PostgreSQL/ArchUnit tests; packaged-jar Chromium 13, no retries. See [Slice 2](slice-2.md). Whole-batch review/image and operational gates remain separately open. |
 | 3. Activity creation | Not Started | Implementation not started. |
 | 4. Instructions, deadline, and status | Not Started | Implementation not started. |
 | 5. Group discovery and first joining | Not Started | Implementation not started. |

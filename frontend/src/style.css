@@ -73,3 +73,43 @@ body { margin:0; }
 @media (max-width:1100px) { .course-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .workspace { padding-left:30px; padding-right:30px; } .sign-in-intro { padding:40px; } }
 @media (max-width:700px) { .course-app { display:block; } .workspace-sidebar { position:static; height:auto; padding:20px; border-bottom:1px solid #e1e8ee; border-right:0; gap:20px; } .workspace-sidebar nav { margin:0; } .workspace-sidebar nav .eyebrow { display:none; } .sidebar-account { margin:0; grid-template-columns:34px minmax(0,1fr) auto; padding-top:16px; } .text-button { grid-column:3; grid-row:1; } .workspace { padding:0 20px 40px; } .course-grid { grid-template-columns:1fr; } .page-heading { margin:30px 0; } .course-app h1 { font-size:30px; } .state-panel,.course-overview { padding:24px; } .course-overview dl div { grid-template-columns:1fr; gap:4px; } .sign-in-page { display:block; } .sign-in-intro { min-height:0; padding:24px; gap:30px; } .sign-in-intro h1 { font-size:32px; } .intro-footer { display:none; } .sign-in-panel { padding:36px 24px; } .back-link { margin:16px 0 0; display:block; } }
 @media (prefers-reduced-motion:reduce) { .course-card { transition:none; } }
+.course-tabs { display:flex; gap:30px; border-bottom:1px solid #dfe6ee; margin-bottom:28px; }
+.course-tabs a { padding:0 0 15px; color:#627684; }
+.course-tabs a[aria-current=page] { color:#315dd1; border-bottom:2px solid #315dd1; font-weight:600; }
+.profile-editor { display:flex; gap:20px; padding:28px; border:1px solid #e1e8ee; background:white; border-radius:12px; }
+.profile-editor > div { flex:1; min-width:0; }
+.profile-avatar { display:grid; place-items:center; border-radius:50%; width:44px; height:44px; background:#eaf0ff; color:#315dd1; font-weight:650; flex-shrink:0; }
+.profile-editor h2 { margin:6px 0 8px; }
+.profile-editor p,.classmates-heading p { color:#627684; }
+.profile-editor form { margin-top:20px; }
+.profile-editor label,.classmate-search { display:block; font-size:12px; font-weight:600; }
+.profile-editor textarea,.classmate-search input { width:100%; border:1px solid #d6dfe7; border-radius:8px; background:white; color:#162d3c; padding:12px; margin-top:7px; font:inherit; }
+.profile-editor textarea { resize:vertical; min-height:112px; }
+.editor-meta { display:flex; justify-content:space-between; gap:10px; color:#627684; font-size:11px; margin-top:5px; }
+.editor-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }
+.course-app button:disabled { opacity:.5; cursor:default; }
+.field-error { color:#922b2b !important; margin-top:6px !important; }
+.success-notice { border:1px solid #bbdccc; background:#f0faf5; color:#2c634c; padding:14px 18px; border-radius:8px; margin-bottom:20px !important; }
+.classmates-heading { display:flex; align-items:center; justify-content:space-between; gap:24px; margin:36px 0 20px; }
+.classmates-heading h2 { margin:6px 0; }
+.classmate-search { width:300px; }
+.people-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; }
+.person-card { padding:23px; background:white; border:1px solid #e1e8ee; border-radius:12px; min-width:0; }
+.person-header { display:flex; gap:12px; align-items:center; }
+.person-header > div { min-width:0; }
+.person-header h3 { margin:0; font-size:14px; overflow-wrap:anywhere; }
+.person-header p { color:#627684; font-size:12px; overflow-wrap:anywhere; }
+.you-tag { display:inline-block; font-size:10px; color:#315dd1; background:#edf2ff; padding:1px 6px; margin-left:7px; border-radius:4px; }
+.person-about { white-space:pre-wrap; overflow-wrap:anywhere; color:#627684; font-size:12px; line-height:1.8; margin:20px 0 !important; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; min-height:65px; }
+.profile-link { border:0; border-top:1px solid #edf0f5; width:100%; padding:14px 0 0; display:flex; justify-content:space-between; background:none; color:#315dd1; font-size:12px !important; }
+.profile-dialog { border:1px solid #dfe6ee; border-radius:16px; padding:30px; width:min(560px,calc(100vw - 40px)); max-height:calc(100vh - 40px); color:#162d3c; box-shadow:0 20px 80px #122c4930; box-sizing:border-box; }
+.profile-dialog::backdrop { background:#14283f60; }
+.profile-dialog-heading { display:flex; align-items:flex-start; gap:20px; justify-content:space-between; }
+.profile-dialog-heading h2 { overflow-wrap:anywhere; }
+.profile-dialog-heading button { flex-shrink:0; }
+.profile-identity { display:flex; align-items:center; gap:14px; margin:24px 0; }
+.profile-full-text { white-space:pre-wrap; overflow-wrap:anywhere; }
+.profile-footnote { color:#627684; font-size:12px; margin-top:24px !important; }
+.saved-introduction { border-top:1px solid #dfe6ee; margin-top:20px; padding-top:16px; }
+@media(max-width:1100px) { .people-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:700px) { .people-grid { grid-template-columns:1fr; } .profile-editor { padding:22px; } .profile-editor > .profile-avatar { display:none; } .classmates-heading { align-items:stretch; flex-direction:column; } .classmate-search { width:100%; } .profile-dialog { padding:22px; } .profile-dialog-heading { flex-wrap:wrap; } .editor-meta { flex-wrap:wrap; } }

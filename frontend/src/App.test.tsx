@@ -49,7 +49,7 @@ test('deep-linked student course loads actual metadata without later modules', a
   render(<App />)
   expect(await screen.findByRole('heading', { name: 'Computing', level: 1 })).toBeInTheDocument()
   expect(api.getCourse).toHaveBeenCalledWith(course.id)
-  expect(screen.queryByText('Classmates')).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Classmates' })).toHaveAttribute('href', `#/courses/${course.id}/classmates`)
   expect(screen.queryByText('About me')).not.toBeInTheDocument()
 })
 test('empty course list differs from a failed read and can be refreshed', async () => {

@@ -1,5 +1,6 @@
 export type Session = { accountId: string; username: string; role: 'TEACHER' | 'STUDENT' }
 export type Course = { id: string; code: string; name: string }
+export type Classmate = { accountId: string; studentId: string; studentName: string; aboutMe: string }
 type CsrfToken = { headerName: string; token: string }
 let token: CsrfToken | undefined
 
@@ -30,6 +31,20 @@ async function readCourse<T>(url: string): Promise<T> {
 }
 export function listCourses(): Promise<Course[]> { return readCourse('/api/courses') }
 export function getCourse(id: string): Promise<Course> { return readCourse(`/api/courses/${encodeURIComponent(id)}`) }
+export function listClassmates(id: string): Promise<Classmate[]> { return readCourse(`/api/courses/${encodeURIComponent(id)}/classmates`) }
+export function getAboutMe(id: string): Promise<Classmate> { return readCourse(`/api/courses/${encodeURIComponent(id)}/about-me`) }
+export async function saveAboutMe(id: string, aboutMe: string): Promise<Classmate> {
+  if (!token) await refreshCsrf()
+  const csrf = token!
+  token = undefined
+  const response = await fetch(`/api/courses/${encodeURIComponent(id)}/about-me`, {
+    method: 'PUT', credentials: 'same-origin', headers: { [csrf.headerName]: csrf.token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ aboutMe }),
+  })
+  if (!response.ok) throw new ApiError(response.status, response.status === 400 ? 'About me must contain valid plain text of 500 characters or fewer.'
+    : response.status === 404 || response.status === 403 ? 'This course is unavailable or you do not have access.' : 'Save could not be confirmed.')
+  return response.json() as Promise<Classmate>
+}
 async function mutate(url: string, body?: URLSearchParams): Promise<void> {
   if (!token) await refreshCsrf()
   const csrf = token!
