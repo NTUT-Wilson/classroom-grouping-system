@@ -107,3 +107,27 @@ test('lost creation response is not replayed and an explicit later attempt obtai
   await expect(createActivity('course', { ...command, commandKey: 'second' })).resolves.toMatchObject({ activity: { id: 'a' } })
   expect(fetchMock.mock.calls[3][1].headers).toMatchObject({ 'X-CSRF-TOKEN': 'new' })
 })
+
+test.each(['instructions', 'deadline'] as const)('settings %s sends narrow JSON once and never replays CSRF rejection', async setting => {
+  const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'settings-token' })))
+    .mockResolvedValueOnce(new Response(null, { status: 403 }))
+  vi.stubGlobal('fetch', fetchMock)
+  const api = await import('./api')
+  const command = setting === 'instructions' ? { commandKey: 'new-key', instructions: 'Exact\n<script>text</script>  😀' } : { commandKey: 'new-key', deadline: '2099-10-21T10:00:00+08:00' }
+  await expect(setting === 'instructions' ? api.saveInstructions('course', command as { commandKey: string; instructions: string }) : api.extendDeadline('course', command as { commandKey: string; deadline: string })).rejects.toMatchObject({ status: 403 })
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  expect(fetchMock.mock.calls[1]).toEqual([`/api/courses/course/activity/${setting}`, { method: setting === 'instructions' ? 'PUT' : 'POST', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': 'settings-token', 'Content-Type': 'application/json' }, body: JSON.stringify(command) }])
+})
+
+test('settings lost response never replays and explicit later command obtains fresh CSRF', async () => {
+  const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'old' })))
+    .mockRejectedValueOnce(new TypeError('lost response'))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'new' })))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ activity: { id: 'a' }, enrolledCount: null })))
+  vi.stubGlobal('fetch', fetchMock)
+  const { saveInstructions } = await import('./api')
+  await expect(saveInstructions('course', { commandKey: 'first', instructions: 'Text' })).rejects.toThrow('lost response')
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  await saveInstructions('course', { commandKey: 'second', instructions: 'Text' })
+  expect(fetchMock.mock.calls[3][1].headers).toMatchObject({ 'X-CSRF-TOKEN': 'new' })
+})

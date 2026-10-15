@@ -8,6 +8,8 @@ import java.util.UUID;
 public interface GroupingActivities {
     Workspace workspace(Principal principal, UUID courseId);
     Workspace create(Principal principal, UUID courseId, UUID commandKey, CreateActivity request);
+    Workspace updateInstructions(Principal principal, UUID courseId, UUID commandKey, String instructions);
+    Workspace extendDeadline(Principal principal, UUID courseId, UUID commandKey, Instant deadline);
     record CreateActivity(String instructions, Instant deadline, List<Integer> capacities) {
         @Override public String toString() { return "CreateActivity[redacted]"; }
     }

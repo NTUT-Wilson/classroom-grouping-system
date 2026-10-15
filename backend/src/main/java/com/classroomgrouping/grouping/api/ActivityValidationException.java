@@ -9,6 +9,7 @@ public final class ActivityValidationException extends RuntimeException {
             case "deadline" -> "Enter a deadline strictly in the future with a timezone offset.";
             case "capacities" -> "Enter a nonempty list of whole numbers of at least 2, totaling all enrolled students (at least 2).";
             case "commandKey" -> "Provide a valid command key.";
+            case "fields" -> "Provide only the fields allowed for this activity command.";
             default -> throw new IllegalArgumentException("Unknown activity field");
         });
         this.field = field;

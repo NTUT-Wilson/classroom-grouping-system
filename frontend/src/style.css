@@ -141,3 +141,4 @@ body { margin:0; }
 .activity-review { max-width:850px; }
 @media(max-width:900px) { .activity-columns { grid-template-columns:minmax(0,1fr); } .activity-guide { padding:12px; } }
 @media(max-width:700px) { .activity-panel { padding:22px; } .activity-toolbar { flex-wrap:wrap; } .activity-setting time { overflow-wrap:anywhere; } }
+.settings-editor { margin-top: 24px; max-width: 850px; } .settings-current { margin: 20px 0; padding: 16px; background: var(--paper, #f5f6f2); border-radius: 12px; min-width: 0; } .settings-current .activity-instructions { margin-bottom: 0; }

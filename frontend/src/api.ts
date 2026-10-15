@@ -35,6 +35,23 @@ async function readCourse<T>(url: string): Promise<T> {
 export function listCourses(): Promise<Course[]> { return readCourse('/api/courses') }
 export function getCourse(id: string): Promise<Course> { return readCourse(`/api/courses/${encodeURIComponent(id)}`) }
 export function getActivity(id: string): Promise<ActivityWorkspace> { return readCourse(`/api/courses/${encodeURIComponent(id)}/activity`) }
+async function saveActivitySetting(id: string, setting: 'instructions' | 'deadline', command: { commandKey: string; instructions?: string; deadline?: string }): Promise<ActivityWorkspace> {
+  if (!token) await refreshCsrf()
+  const csrf = token!
+  token = undefined
+  const response = await fetch(`/api/courses/${encodeURIComponent(id)}/activity/${setting}`, {
+    method: setting === 'instructions' ? 'PUT' : 'POST', credentials: 'same-origin',
+    headers: { [csrf.headerName]: csrf.token, 'Content-Type': 'application/json' }, body: JSON.stringify(command),
+  })
+  if (!response.ok) throw new ApiError(response.status, response.status === 400
+    ? setting === 'instructions' ? 'Enter nonblank plain-text instructions of at most 5,000 characters.' : 'Choose a later deadline while grouping is still open. Refresh to check the current deadline.'
+    : response.status === 401 ? 'Your session expired. Please sign in again.'
+      : response.status === 403 || response.status === 404 ? 'This request is unavailable or you do not have access. Check current activity before continuing.'
+        : 'Save could not be confirmed. Check current activity before trying again.')
+  return response.json() as Promise<ActivityWorkspace>
+}
+export function saveInstructions(id: string, command: { commandKey: string; instructions: string }): Promise<ActivityWorkspace> { return saveActivitySetting(id, 'instructions', command) }
+export function extendDeadline(id: string, command: { commandKey: string; deadline: string }): Promise<ActivityWorkspace> { return saveActivitySetting(id, 'deadline', command) }
 export async function createActivity(id: string, command: CreateActivity): Promise<ActivityWorkspace> {
   if (!token) await refreshCsrf()
   const csrf = token!

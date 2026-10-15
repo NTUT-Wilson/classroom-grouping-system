@@ -47,7 +47,14 @@ class ApiProblemHandler {
                 + ProfileValidationException.MESSAGE + "\"}}");
     }
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    void invalidBody(HttpServletResponse response) throws IOException {
+    void invalidBody(HttpMessageNotReadableException exception, HttpServletResponse response) throws IOException {
+        Throwable cause = exception.getCause();
+        for (int depth = 0; cause != null && depth < 8; depth++, cause = cause.getCause()) {
+            if (cause instanceof ActivityValidationException validation) {
+                invalidActivity(validation, response);
+                return;
+            }
+        }
         ProblemResponses.write(response, 400, "Invalid request body", "INVALID_REQUEST");
     }
     @ExceptionHandler(CourseNotAccessible.class)

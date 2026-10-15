@@ -86,9 +86,81 @@ class DatabaseGroupingActivities implements GroupingActivities {
                 UUID.randomUUID(), activityId, i + 1, request.capacities().get(i));
         return project(courseId, access);
     }
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public Workspace updateInstructions(Principal principal, UUID courseId, UUID commandKey, String instructions) {
+        var activity = lockActivity(courseId);
+        var access = assignedTeacher(principal, courseId);
+        requireKey(commandKey);
+        validateInstructions(instructions);
+        if (replayed(access, activity.id(), commandKey, "UPDATE_INSTRUCTIONS", fingerprintValues(courseId.toString(), instructions)))
+            return project(courseId, access);
+        jdbc.update("UPDATE grouping_activity SET instructions=? WHERE id=?", instructions, activity.id());
+        return project(courseId, access);
+    }
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public Workspace extendDeadline(Principal principal, UUID courseId, UUID commandKey, Instant deadline) {
+        var activity = lockActivity(courseId);
+        var access = assignedTeacher(principal, courseId);
+        requireKey(commandKey);
+        validateDeadline(deadline);
+        if (replayed(access, activity.id(), commandKey, "EXTEND_DEADLINE", fingerprintValues(courseId.toString(), deadline.toString())))
+            return project(courseId, access);
+        // Normalize to the same microsecond precision used for the authoritative comparison and stored value.
+        Instant persisted = deadline.truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        var now = jdbc.queryForObject("SELECT clock_timestamp()", Timestamp.class).toInstant();
+        if (!now.isBefore(activity.deadline())) throw new ActivityConflict("ACTIVITY_CLOSED");
+        if (!persisted.isAfter(activity.deadline())) throw new ActivityConflict("DEADLINE_NOT_LATER");
+        jdbc.update("UPDATE grouping_activity SET deadline=? WHERE id=?", Timestamp.from(persisted), activity.id());
+        return project(courseId, access);
+    }
+    private record LockedActivity(UUID id, Instant deadline) {}
+    private LockedActivity lockActivity(UUID courseId) {
+        var rows = jdbc.query("SELECT id, deadline FROM grouping_activity WHERE course_id=? FOR UPDATE",
+                (rs, row) -> new LockedActivity(rs.getObject("id", UUID.class), rs.getTimestamp("deadline").toInstant()), courseId);
+        if (rows.isEmpty()) throw new CourseNotAccessible();
+        return rows.getFirst();
+    }
+    private ActivityCourseAccess.Access assignedTeacher(Principal principal, UUID courseId) {
+        // READ COMMITTED rechecks persisted identity and assignment after any activity-lock wait.
+        var access = courses.read(principal, courseId);
+        if (!access.teacher()) throw new CourseNotAccessible();
+        return access;
+    }
+    private static void requireKey(UUID commandKey) {
+        if (commandKey == null) throw new ActivityValidationException("commandKey");
+    }
+    private boolean replayed(ActivityCourseAccess.Access access, UUID activityId, UUID key, String command, String fingerprint) {
+        int claimed = jdbc.update("""
+                INSERT INTO grouping_command_receipt(actor_id, command, command_key, fingerprint, activity_id)
+                VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
+                """, access.actorId(), command, key, fingerprint, activityId);
+        if (claimed != 0) return false;
+        String saved = jdbc.queryForObject("""
+                SELECT fingerprint FROM grouping_command_receipt WHERE actor_id=? AND command=? AND command_key=?
+                """, String.class, access.actorId(), command, key);
+        if (!fingerprint.equals(saved)) throw new ActivityConflict("COMMAND_KEY_REUSED");
+        return true;
+    }
+    private static String fingerprintValues(String... values) {
+        try {
+            var bytes = new ByteArrayOutputStream();
+            var out = new DataOutputStream(bytes);
+            for (String value : values) {
+                byte[] encoded = value.getBytes(StandardCharsets.UTF_8); out.writeInt(encoded.length); out.write(encoded);
+            }
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes.toByteArray()));
+        } catch (java.io.IOException | java.security.NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("Cannot fingerprint activity command", impossible);
+        }
+    }
     private static void validate(CreateActivity request) {
         if (request == null) throw new ActivityValidationException("instructions");
-        String text = request.instructions();
+        validateInstructions(request.instructions());
+        validateDeadline(request.deadline());
+        if (request.capacities() == null || request.capacities().isEmpty()
+                || request.capacities().stream().anyMatch(c -> c == null || c < 2)) throw new ActivityValidationException("capacities");
+    }
+    private static void validateInstructions(String text) {
         if (text == null || text.codePoints().allMatch(c -> Character.isWhitespace(c) || Character.isSpaceChar(c) || c == 0x85 || c == 0xfeff)
                 || text.codePointCount(0, text.length()) > 5000)
             throw new ActivityValidationException("instructions");
@@ -98,11 +170,11 @@ class DatabaseGroupingActivities implements GroupingActivities {
             if (Character.isHighSurrogate(c) && (++i >= text.length() || !Character.isLowSurrogate(text.charAt(i))))
                 throw new ActivityValidationException("instructions");
         }
+    }
+    private static void validateDeadline(Instant deadline) {
         // PostgreSQL timestamp's supported upper bound; this is storage validation, not a product deadline limit.
-        if (request.deadline() == null || !request.deadline().isBefore(Instant.parse("+294277-01-01T00:00:00Z")))
+        if (deadline == null || !deadline.isBefore(Instant.parse("+294277-01-01T00:00:00Z")))
             throw new ActivityValidationException("deadline");
-        if (request.capacities() == null || request.capacities().isEmpty()
-                || request.capacities().stream().anyMatch(c -> c == null || c < 2)) throw new ActivityValidationException("capacities");
     }
     private static String fingerprint(UUID courseId, CreateActivity request) {
         try {

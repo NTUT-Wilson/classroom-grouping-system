@@ -13,7 +13,7 @@ Allowed statuses: **Not Started**, **In Progress**, **Completed**. Mark a slice 
 | 1. Accounts and course workspace | Completed | Local acceptance 2026-10-13: frontend 25 tests/build; full Maven 27 PostgreSQL/ArchUnit tests; jar and image Chromium 8 each; prototype 7; two fresh independent reviewers. See [Slice 1 evidence](slice-1.md). Remote CI/hosting remain open; preserved baseline must be settled before publishing. |
 | 2. Classmate profiles | Completed | Checkpoint 2026-10-15: frontend 33 tests/build; full Maven 36 PostgreSQL/ArchUnit tests; packaged-jar Chromium 13, no retries. See [Slice 2](slice-2.md). Whole-batch review/image and operational gates remain separately open. |
 | 3. Activity creation | Completed | Checkpoint 2026-10-15: frontend 48 tests/build; full Maven 51 tests, including 15 focused creation/concurrency cases; packaged-jar Chromium 15, no retries. See [Slice 3](slice-3.md). Whole-batch review/image and operational gates remain open. |
-| 4. Instructions, deadline, and status | Not Started | Implementation not started. |
+| 4. Instructions, deadline, and status | Completed | Checkpoint 2026-10-15: frontend 61 tests/build; full Maven 64 tests; packaged-jar Chromium 16, including genuine cutoff, no retries. See [Slice 4](slice-4.md). Whole-batch review/image and operational gates remain open. |
 | 5. Group discovery and first joining | Not Started | Implementation not started. |
 | 6. Applications | Not Started | Implementation not started. |
 | 7. Invitations and combined request behavior | Not Started | Implementation not started. |

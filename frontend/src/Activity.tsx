@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApiError, createActivity, getActivity } from './api'
 import type { Activity, ActivityWorkspace, Course } from './api'
+import { ActivitySettings } from './ActivitySettings'
 
 export function instructionsError(text: string): string {
   if (!/[^\u0009-\u000d\u001c-\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]/u.test(text)) return 'Enter activity instructions.'
@@ -26,7 +27,7 @@ export function capacityError(entries: string[], count: number): string {
 export function Deadline({ value }: { value: string }) {
   return <time dateTime={value}>{new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Taipei', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value))} · Asia/Taipei (UTC+8)</time>
 }
-function ActivityDetails({ activity }: { activity: Activity }) {
+export function ActivityDetails({ activity }: { activity: Activity }) {
   return <div className="activity-columns"><section className="activity-panel"><span className="eyebrow">GROUPING ACTIVITY</span><h2>Activity instructions</h2><p className="activity-instructions">{activity.instructions}</p></section><aside className="activity-panel"><span className="eyebrow">ACTIVITY DETAILS</span><h2>One course. One activity.</h2><div className="activity-setting"><strong>Grouping deadline</strong><Deadline value={activity.deadline} /></div><div className="activity-setting"><strong>Fixed capacity layout</strong><ol className="capacity-list">{activity.groups.map(group => <li key={group.id}><span>{group.name}</span><strong>{group.capacity} places</strong></li>)}</ol><p className="activity-hint">Capacities and participants are fixed after creation.</p></div>{activity.status === 'FINALIZING' && <p role="status">Grouping is closed. Final results are not available. Refresh to check current activity status.</p>}</aside></div>
 }
 export function CourseActivity({ course, role, expired }: { course: Course; role: 'TEACHER' | 'STUDENT'; expired: () => void }) {
@@ -92,10 +93,10 @@ export function CourseActivity({ course, role, expired }: { course: Course; role
   if (loading) return <section className="state-panel" role="status"><h2>Checking activity…</h2></section>
   if (!workspace) return <section className="state-panel"><h2>Activity unavailable</h2><p role="alert">{problem}</p><button className="secondary-button" onClick={() => void load(true)}>Check activity</button></section>
   return <section className="activity-workspace">
-    <div className="activity-toolbar"><span className="eyebrow">COURSE GROUPING</span><button className="secondary-button" disabled={saving} onClick={() => void load(uncertain)}>Refresh activity</button></div>
+    {!workspace.activity && <div className="activity-toolbar"><span className="eyebrow">COURSE GROUPING</span><button className="secondary-button" disabled={saving} onClick={() => void load(uncertain)}>Refresh activity</button></div>}
     {problem && <p role="alert" className="notice">{problem}</p>}{message && <p role="status" className="success-notice">{message}</p>}
     {uncertain ? <section className="state-panel"><h2>Check before continuing</h2><p>No further creation request will be sent until current activity status is checked.</p><button className="primary-button" onClick={() => void load(true)}>Check activity</button></section>
-      : workspace.activity ? <ActivityDetails activity={workspace.activity} />
+      : workspace.activity ? <ActivitySettings key={course.id} initial={workspace.activity} courseId={course.id} role={role} expired={expired} />
         : role === 'STUDENT' ? <section className="state-panel"><h2>No grouping activity yet</h2><p>Your teacher has not created a grouping activity for this course. Refresh to check again.</p></section>
           : stage === 'empty' ? <section className="state-panel"><span className="eyebrow">A NEW GROUPING ACTIVITY</span><h2>Give collaboration a starting point.</h2><p>Create an activity for all {workspace.enrolledCount} enrolled students.</p>{workspace.enrolledCount! < 2 && <p role="alert">At least two enrolled students are required to create an activity.</p>}<button className="primary-button" disabled={workspace.enrolledCount! < 2} onClick={() => setStage('setup')}>Create activity</button></section>
             : stage === 'review' ? <section className="activity-panel activity-review"><span className="eyebrow">REVIEW BEFORE CREATING</span><h2 ref={heading} tabIndex={-1}>Ready to open grouping?</h2><p>Creating this activity makes it immediately visible to all {workspace.enrolledCount} course participants. The capacity layout cannot be changed, and the activity cannot be deleted, replaced, or reset.</p><h3>Activity instructions</h3><p className="activity-instructions">{instructions}</p><h3>Grouping deadline</h3><Deadline value={parsedDeadline!} /><h3>Fixed capacity layout</h3><ol className="capacity-list">{capacities.map((value, index) => <li key={index}><span>Group {index + 1}</span><strong>{value} places</strong></li>)}</ol><div className="editor-actions"><button className="secondary-button" disabled={saving} onClick={() => setStage('setup')}>Back to setup</button><button className="primary-button" disabled={saving} onClick={() => void confirm()}>{saving ? 'Creating…' : 'Confirm create activity'}</button></div></section>
