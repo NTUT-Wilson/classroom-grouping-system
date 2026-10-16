@@ -46,7 +46,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Generate synthetic roster credentials
         run: |
-          for key in ROSTER_TEACHER_PASSWORD ROSTER_STUDENT_PASSWORD; do
+          for key in ROSTER_TEACHER_PASSWORD ROSTER_STUDENT_PASSWORD BATCH_FIXTURE_PASSWORD; do
             value=$(openssl rand -hex 24)
             echo "::add-mask::$value"
             echo "$key=$value" >> "$GITHUB_ENV"
@@ -59,7 +59,7 @@ jobs:
           DEMO_USERNAME: ci-demo
           DEMO_PASSWORD: ci-only-foundation-password
         run: |
-          java -jar backend/target/classroom-grouping-0.0.1-SNAPSHOT.jar --spring.profiles.active=local --app.demo.enabled=true --app.roster.enabled=true > backend/target/browser-backend.log 2>&1 &
+          java -jar backend/target/classroom-grouping-0.0.1-SNAPSHOT.jar --spring.profiles.active=local --app.demo.enabled=true --app.roster.enabled=true --app.batch-fixture.enabled=true > backend/target/browser-backend.log 2>&1 &
           APP_PID=$!
           trap 'kill "$APP_PID"' EXIT
           for attempt in $(seq 1 60); do
@@ -76,12 +76,17 @@ jobs:
           E2E_BASE_URL: http://127.0.0.1:8081
         run: |
           docker build --tag classroom-grouping:ci .
+          # Browser creation stories require a fresh disposable database for each artifact.
+          # Preserve the packaged-jar run's activities and history rather than resetting them.
+          docker exec '${{ job.services.postgres.id }}' psql -U classroom_local -d classroom_grouping \
+            -v ON_ERROR_STOP=1 -c 'CREATE DATABASE classroom_grouping_image'
           CONTAINER=$(docker run --rm -d --network host --memory=512m \
             -e SPRING_PROFILES_ACTIVE=local -e SERVER_ADDRESS=127.0.0.1 -e PORT=8081 \
-            -e DATABASE_URL=jdbc:postgresql://127.0.0.1:5432/classroom_grouping \
+            -e DATABASE_URL=jdbc:postgresql://127.0.0.1:5432/classroom_grouping_image \
             -e DATABASE_USERNAME=classroom_local -e DATABASE_PASSWORD=ci-only-password \
             -e APP_DEMO_ENABLED=true -e DEMO_USERNAME -e DEMO_PASSWORD \
             -e APP_ROSTER_ENABLED=true -e ROSTER_TEACHER_PASSWORD -e ROSTER_STUDENT_PASSWORD \
+            -e APP_BATCH_FIXTURE_ENABLED=true -e BATCH_FIXTURE_PASSWORD \
             -e SCHEDULER_SECRET=ci-only-scheduler-secret-at-least-32-bytes classroom-grouping:ci)
           trap 'docker stop "$CONTAINER"' EXIT
           test "$(docker exec "$CONTAINER" id -u)" = 10001

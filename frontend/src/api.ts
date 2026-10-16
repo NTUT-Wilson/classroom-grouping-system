@@ -1,10 +1,54 @@
 export type Session = { accountId: string; username: string; role: 'TEACHER' | 'STUDENT' }
 export type Course = { id: string; code: string; name: string }
+export type Classmate = { accountId: string; studentId: string; studentName: string; aboutMe: string }
+export type Activity = { id: string; courseId: string; instructions: string; deadline: string; status: 'OPEN' | 'FINALIZING'; groups: { id: string; ordinal: number; name: string; capacity: number }[] }
+export type ActivityWorkspace = { activity: Activity | null; enrolledCount: number | null }
+export type CreateActivity = { commandKey: string; instructions: string; deadline: string; capacities: number[] }
+export type DiscoveryGroup = { id: string; name: string; capacity: number; availablePlaces: number; manager: Classmate | null; members: Classmate[] }
+export type GroupDiscovery = { activityId: string | null; status: 'ABSENT' | 'OPEN' | 'FINALIZING'; ownGroupId: string | null; groups: DiscoveryGroup[] }
+export type ApplicationAttempt = { id: string; groupId: string; groupName: string; applicant: Classmate; manager: Classmate; status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELED' | 'EXPIRED'; reason: string | null; createdAt: string }
+export type ApplicationPage = { activityId: string | null; status: 'ABSENT' | 'OPEN' | 'FINALIZING'; items: ApplicationAttempt[]; nextCursor: string | null }
+export type InvitationAttempt = Omit<ApplicationAttempt, 'applicant' | 'manager'> & { sender: Classmate; recipient: Classmate }
+export type InvitationPage = Omit<ApplicationPage, 'items'> & { items: InvitationAttempt[] }
+export function getInvitations(id: string, cursor?: string): Promise<InvitationPage> {
+  return readCourse(`/api/courses/${encodeURIComponent(id)}/invitations?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`)
+}
+async function invitationCommand(url: string, command: { commandKey: string; recipientId?: string; decision?: 'ACCEPT' | 'REJECT' }): Promise<InvitationPage> {
+  if (!token) await refreshCsrf()
+  const csrf = token!
+  token = undefined
+  const response = await fetch(url, { method: 'POST', credentials: 'same-origin', headers: { [csrf.headerName]: csrf.token, 'Content-Type': 'application/json' }, body: JSON.stringify(command) })
+  if (!response.ok) throw new ApiError(response.status, 'Invitation action could not be confirmed. Refresh requests before choosing another action.')
+  return response.json() as Promise<InvitationPage>
+}
+export function inviteClassmate(id: string, groupId: string, command: { commandKey: string; recipientId: string }): Promise<InvitationPage> {
+  return invitationCommand(`/api/courses/${encodeURIComponent(id)}/groups/${encodeURIComponent(groupId)}/invitations`, command)
+}
+export function decideInvitation(id: string, invitationId: string, command: { commandKey: string; decision: 'ACCEPT' | 'REJECT' }): Promise<InvitationPage> {
+  return invitationCommand(`/api/courses/${encodeURIComponent(id)}/invitations/${encodeURIComponent(invitationId)}/decision`, command)
+}
+export function getApplications(id: string, cursor?: string): Promise<ApplicationPage> {
+  return readCourse(`/api/courses/${encodeURIComponent(id)}/applications?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`)
+}
+async function applicationCommand(url: string, command: { commandKey: string; decision?: 'APPROVE' | 'REJECT' }): Promise<ApplicationPage> {
+  if (!token) await refreshCsrf()
+  const csrf = token!
+  token = undefined
+  const response = await fetch(url, { method: 'POST', credentials: 'same-origin', headers: { [csrf.headerName]: csrf.token, 'Content-Type': 'application/json' }, body: JSON.stringify(command) })
+  if (!response.ok) throw new ApiError(response.status, 'Application action could not be confirmed. Refresh requests and groups before choosing another action.')
+  return response.json() as Promise<ApplicationPage>
+}
+export function applyToGroup(id: string, groupId: string, command: { commandKey: string }): Promise<ApplicationPage> {
+  return applicationCommand(`/api/courses/${encodeURIComponent(id)}/groups/${encodeURIComponent(groupId)}/applications`, command)
+}
+export function decideApplication(id: string, applicationId: string, command: { commandKey: string; decision: 'APPROVE' | 'REJECT' }): Promise<ApplicationPage> {
+  return applicationCommand(`/api/courses/${encodeURIComponent(id)}/applications/${encodeURIComponent(applicationId)}/decision`, command)
+}
 type CsrfToken = { headerName: string; token: string }
 let token: CsrfToken | undefined
 
 export class ApiError extends Error {
-  constructor(public readonly status: number, message: string) { super(message) }
+  constructor(public readonly status: number, message: string, public readonly code?: string) { super(message) }
 }
 async function refreshCsrf(): Promise<void> {
   token = undefined
@@ -30,6 +74,67 @@ async function readCourse<T>(url: string): Promise<T> {
 }
 export function listCourses(): Promise<Course[]> { return readCourse('/api/courses') }
 export function getCourse(id: string): Promise<Course> { return readCourse(`/api/courses/${encodeURIComponent(id)}`) }
+export function getActivity(id: string): Promise<ActivityWorkspace> { return readCourse(`/api/courses/${encodeURIComponent(id)}/activity`) }
+export function getGrouping(id: string): Promise<GroupDiscovery> { return readCourse(`/api/courses/${encodeURIComponent(id)}/grouping`) }
+export async function joinEmptyGroup(id: string, groupId: string, command: { commandKey: string }): Promise<GroupDiscovery> {
+  if (!token) await refreshCsrf()
+  const csrf = token!
+  token = undefined
+  const response = await fetch(`/api/courses/${encodeURIComponent(id)}/groups/${encodeURIComponent(groupId)}/join`, {
+    method: 'POST', credentials: 'same-origin', headers: { [csrf.headerName]: csrf.token, 'Content-Type': 'application/json' }, body: JSON.stringify(command),
+  })
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null) as { code?: unknown } | null
+    const code = typeof problem?.code === 'string' ? problem.code : undefined
+    throw new ApiError(response.status, 'Joining could not be confirmed. Check current groups before continuing.', code)
+  }
+  return response.json() as Promise<GroupDiscovery>
+}
+async function saveActivitySetting(id: string, setting: 'instructions' | 'deadline', command: { commandKey: string; instructions?: string; deadline?: string }): Promise<ActivityWorkspace> {
+  if (!token) await refreshCsrf()
+  const csrf = token!
+  token = undefined
+  const response = await fetch(`/api/courses/${encodeURIComponent(id)}/activity/${setting}`, {
+    method: setting === 'instructions' ? 'PUT' : 'POST', credentials: 'same-origin',
+    headers: { [csrf.headerName]: csrf.token, 'Content-Type': 'application/json' }, body: JSON.stringify(command),
+  })
+  if (!response.ok) throw new ApiError(response.status, response.status === 400
+    ? setting === 'instructions' ? 'Enter nonblank plain-text instructions of at most 5,000 characters.' : 'Choose a later deadline while grouping is still open. Refresh to check the current deadline.'
+    : response.status === 401 ? 'Your session expired. Please sign in again.'
+      : response.status === 403 || response.status === 404 ? 'This request is unavailable or you do not have access. Check current activity before continuing.'
+        : 'Save could not be confirmed. Check current activity before trying again.')
+  return response.json() as Promise<ActivityWorkspace>
+}
+export function saveInstructions(id: string, command: { commandKey: string; instructions: string }): Promise<ActivityWorkspace> { return saveActivitySetting(id, 'instructions', command) }
+export function extendDeadline(id: string, command: { commandKey: string; deadline: string }): Promise<ActivityWorkspace> { return saveActivitySetting(id, 'deadline', command) }
+export async function createActivity(id: string, command: CreateActivity): Promise<ActivityWorkspace> {
+  if (!token) await refreshCsrf()
+  const csrf = token!
+  token = undefined
+  const response = await fetch(`/api/courses/${encodeURIComponent(id)}/activity`, {
+    method: 'POST', credentials: 'same-origin', headers: { [csrf.headerName]: csrf.token, 'Content-Type': 'application/json' }, body: JSON.stringify(command),
+  })
+  if (!response.ok) throw new ApiError(response.status, response.status === 400
+    ? 'Check the instructions, future Asia/Taipei deadline, and whole-number capacities. Their total must match all currently enrolled students.'
+    : response.status === 401 ? 'Your session expired. Please sign in again.'
+      : response.status === 403 ? 'The request was denied. Refresh your session and check activity status before continuing.'
+        : response.status === 404 ? 'This course is unavailable or you do not have access.' : 'Creation could not be confirmed. Check activity status before trying again.')
+  return response.json() as Promise<ActivityWorkspace>
+}
+export function listClassmates(id: string): Promise<Classmate[]> { return readCourse(`/api/courses/${encodeURIComponent(id)}/classmates`) }
+export function getAboutMe(id: string): Promise<Classmate> { return readCourse(`/api/courses/${encodeURIComponent(id)}/about-me`) }
+export async function saveAboutMe(id: string, aboutMe: string): Promise<Classmate> {
+  if (!token) await refreshCsrf()
+  const csrf = token!
+  token = undefined
+  const response = await fetch(`/api/courses/${encodeURIComponent(id)}/about-me`, {
+    method: 'PUT', credentials: 'same-origin', headers: { [csrf.headerName]: csrf.token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ aboutMe }),
+  })
+  if (!response.ok) throw new ApiError(response.status, response.status === 400 ? 'About me must contain valid plain text of 500 characters or fewer.'
+    : response.status === 404 || response.status === 403 ? 'This course is unavailable or you do not have access.' : 'Save could not be confirmed.')
+  return response.json() as Promise<Classmate>
+}
 async function mutate(url: string, body?: URLSearchParams): Promise<void> {
   if (!token) await refreshCsrf()
   const csrf = token!

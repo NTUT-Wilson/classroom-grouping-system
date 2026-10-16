@@ -49,7 +49,7 @@ test('deep-linked student course loads actual metadata without later modules', a
   render(<App />)
   expect(await screen.findByRole('heading', { name: 'Computing', level: 1 })).toBeInTheDocument()
   expect(api.getCourse).toHaveBeenCalledWith(course.id)
-  expect(screen.queryByText('Classmates')).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Classmates' })).toHaveAttribute('href', `#/courses/${course.id}/classmates`)
   expect(screen.queryByText('About me')).not.toBeInTheDocument()
 })
 test('empty course list differs from a failed read and can be refreshed', async () => {
@@ -126,4 +126,31 @@ test('failed refresh removes previous course data until session can be read', as
   await user.click(screen.getByRole('button', { name: 'Refresh' }))
   await screen.findByText('Session unavailable')
   expect(screen.queryByText('Computing')).not.toBeInTheDocument()
+})
+
+test('teacher direct Groups route is denied without grouping data or student navigation', async () => {
+  window.location.hash = `#/courses/${course.id}/groups`
+  vi.mocked(api.initializeSession).mockResolvedValue(teacher)
+  render(<App />)
+  expect(await screen.findByRole('heading', { name: 'Groups unavailable' })).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Groups' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('navigation', { name: 'Course navigation' })).not.toBeInTheDocument()
+})
+
+test('teacher direct Requests route is denied without request navigation', async () => {
+  window.location.hash = `#/courses/${course.id}/requests`
+  vi.mocked(api.initializeSession).mockResolvedValue(teacher)
+  render(<App />)
+  expect(await screen.findByRole('heading', { name: 'Requests unavailable' })).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Requests' })).not.toBeInTheDocument()
+  expect(screen.getByRole('alert')).toHaveTextContent('unavailable or you do not have access')
+})
+
+test('duplicate route notification does not strand the loaded workspace', async () => {
+  vi.mocked(api.initializeSession).mockResolvedValue(teacher)
+  render(<App />)
+  await screen.findByRole('link', { name: /Computing/ })
+  window.dispatchEvent(new HashChangeEvent('hashchange'))
+  await waitFor(() => expect(screen.getByRole('link', { name: /Computing/ })).toBeInTheDocument())
+  expect(screen.queryByText('Loading courses…')).not.toBeInTheDocument()
 })

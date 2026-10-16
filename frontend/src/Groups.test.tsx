@@ -1,0 +1,197 @@
+import { act, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, expect, test, vi } from 'vitest'
+import { Groups } from './Groups'
+import * as api from './api'
+vi.mock('./api', async importOriginal => ({ ...await importOriginal<typeof api>(), getInvitations: vi.fn(), getGrouping: vi.fn(), getApplications: vi.fn(), applyToGroup: vi.fn(), joinEmptyGroup: vi.fn() }))
+const course = { id: 'course-one', code: 'C1', name: 'Computing' }
+const own = { accountId: 'own', studentId: '00001', studentName: 'Alex', aboutMe: 'Current own text' }
+const peer = { accountId: 'peer', studentId: '00002', studentName: '陳 <Mina>', aboutMe: '<script>literal</script>\nCurrent introduction' }
+const empty = { id: 'g1', name: 'Group 1', capacity: 2, availablePlaces: 2, manager: null, members: [] }
+const open: api.GroupDiscovery = { activityId: 'activity', status: 'OPEN', ownGroupId: null, groups: [empty, { id: 'g2', name: 'Group 2', capacity: 2, availablePlaces: 1, manager: peer, members: [peer] }] }
+const joined: api.GroupDiscovery = { ...open, ownGroupId: 'g1', groups: [{ ...empty, availablePlaces: 1, manager: own, members: [own] }, open.groups[1]] }
+beforeEach(() => {
+  vi.resetAllMocks(); vi.mocked(api.getInvitations).mockResolvedValue({ activityId: 'activity', status: 'OPEN', items: [], nextCursor: null }); vi.mocked(api.getApplications).mockResolvedValue({ activityId: 'activity', status: 'OPEN', items: [], nextCursor: null }); vi.mocked(api.getGrouping).mockResolvedValue(open); vi.mocked(api.joinEmptyGroup).mockResolvedValue(joined)
+  Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value() { this.setAttribute('open', ''); this.querySelector('button')?.focus() } })
+})
+function mount() { return render(<Groups course={course} accountId="own" expired={vi.fn()} />) }
+test('invitation history must reconcile before uncertain joining can be tried again', async () => {
+  vi.mocked(api.joinEmptyGroup).mockRejectedValueOnce(new TypeError('lost response'))
+  const user = userEvent.setup(); mount(); await confirm(user); await screen.findByRole('alert')
+  vi.mocked(api.getInvitations).mockRejectedValueOnce(new TypeError('history offline'))
+  await user.click(screen.getByRole('button', { name: 'Check current groups' })); await screen.findByRole('alert')
+  expect(screen.queryByRole('button', { name: 'Join Group 1' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Check current groups' })); await screen.findByRole('button', { name: 'Join Group 1' })
+  expect(api.joinEmptyGroup).toHaveBeenCalledTimes(1)
+})
+async function choose(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole('button', { name: 'Join Group 1' }))
+  return screen.getByRole('dialog', { name: 'Join Group 1?' })
+}
+async function confirm(user: ReturnType<typeof userEvent.setup>) { await choose(user); await user.click(screen.getByRole('button', { name: 'Confirm join' })) }
+
+test('shows permitted current membership/profile fields as text and exposes only empty group joining', async () => {
+  const { container } = mount(); await screen.findByText('You are ungrouped')
+  const occupied = screen.getByRole('region', { name: 'Group 2' })
+  expect(within(occupied).getByText('陳 <Mina>')).toBeInTheDocument()
+  expect(within(occupied).getByText('Student ID · 00002')).toBeInTheDocument()
+  expect(within(occupied).getByText(/<script>literal/)).toBeInTheDocument()
+  expect(container.querySelector('script')).toBeNull()
+  expect(within(occupied).getByText('Manager')).toBeInTheDocument()
+  expect(within(occupied).getByRole('button', { name: 'Apply to Group 2' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /invite/i })).not.toBeInTheDocument()
+})
+
+test('joining needs deliberate confirmation; cancel restores focus and successful membership removes join controls', async () => {
+  const user = userEvent.setup(); mount()
+  const dialog = await choose(user)
+  expect(within(dialog).getByText(/initial manager and a member/)).toBeInTheDocument()
+  expect(api.joinEmptyGroup).not.toHaveBeenCalled()
+  expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus()
+  await user.click(screen.getByRole('button', { name: 'Cancel' }))
+  expect(screen.getByRole('button', { name: 'Join Group 1' })).toHaveFocus()
+  await confirm(user)
+  expect(await screen.findByText('You are the group manager and a member of Group 1.')).toBeInTheDocument()
+  expect(api.joinEmptyGroup).toHaveBeenCalledWith(course.id, 'g1', { commandKey: expect.stringMatching(/^[0-9a-f-]{36}$/) })
+  expect(api.joinEmptyGroup).toHaveBeenCalledTimes(1)
+  expect(screen.queryByRole('button', { name: /^Join / })).not.toBeInTheDocument()
+})
+
+test('first-join loser shows exact conflict, refreshes permitted status, and never joins occupied group', async () => {
+  const user = userEvent.setup(); vi.mocked(api.joinEmptyGroup).mockRejectedValueOnce(new api.ApiError(409, 'conflict', 'GROUP_NOT_EMPTY'))
+  vi.mocked(api.getGrouping).mockResolvedValueOnce(open).mockResolvedValue({ ...open, groups: [{ ...empty, availablePlaces: 1, manager: peer, members: [peer] }, open.groups[1]] })
+  mount(); await confirm(user)
+  expect(await screen.findByRole('alert')).toHaveTextContent(/^This group is no longer empty$/)
+  await waitFor(() => expect(api.getGrouping).toHaveBeenCalledTimes(2))
+  expect(screen.queryByRole('button', { name: /^Join / })).not.toBeInTheDocument()
+  expect(api.joinEmptyGroup).toHaveBeenCalledTimes(1)
+})
+
+test('uncertain response prevents mutations until successful read and later deliberate attempt uses fresh UUID', async () => {
+  const user = userEvent.setup(); vi.mocked(api.joinEmptyGroup).mockRejectedValueOnce(new TypeError('lost')).mockResolvedValueOnce(joined)
+  mount(); await confirm(user)
+  expect(await screen.findByRole('heading', { name: 'Check groups before continuing' })).toBeInTheDocument()
+  expect(screen.queryByRole('region', { name: 'Group 1' })).not.toBeInTheDocument()
+  vi.mocked(api.getGrouping).mockRejectedValueOnce(new Error('offline'))
+  await user.click(screen.getByRole('button', { name: 'Check current groups' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('could not be checked')
+  expect(screen.queryByRole('button', { name: /^Join / })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Check current groups' }))
+  await screen.findByRole('button', { name: 'Join Group 1' })
+  expect(api.joinEmptyGroup).toHaveBeenCalledTimes(1)
+  await confirm(user)
+  await screen.findByText('Your join was confirmed.')
+  const keys = vi.mocked(api.joinEmptyGroup).mock.calls.map(call => call[2].commandKey)
+  expect(keys[0]).not.toBe(keys[1])
+})
+
+test.each([403, 404, 401])('read denial %s clears protected data and expires sessions only on 401', async status => {
+  const expired = vi.fn(); vi.mocked(api.getGrouping).mockRejectedValue(new api.ApiError(status, 'denied'))
+  render(<Groups course={course} accountId="own" expired={expired} />)
+  expect(await screen.findByRole('alert')).toHaveTextContent('unavailable or you do not have access')
+  expect(screen.queryByText(peer.studentName)).not.toBeInTheDocument()
+  expect(expired).toHaveBeenCalledTimes(status === 401 ? 1 : 0)
+})
+
+test.each([403, 404, 401])('join denial %s removes roster with no automatic mutation replay', async status => {
+  const user = userEvent.setup(); vi.mocked(api.joinEmptyGroup).mockRejectedValue(new api.ApiError(status, 'denied')); mount(); await confirm(user)
+  expect(await screen.findByRole('heading', { name: 'Groups unavailable' })).toBeInTheDocument()
+  expect(screen.queryByText(peer.studentName)).not.toBeInTheDocument()
+  expect(api.joinEmptyGroup).toHaveBeenCalledTimes(1)
+})
+
+test('closed read hides even malformed partial roster and refresh remains read-only', async () => {
+  const user = userEvent.setup(); vi.mocked(api.getGrouping).mockResolvedValue({ ...joined, status: 'FINALIZING' }); mount()
+  await screen.findByRole('heading', { name: 'Grouping is finalizing' })
+  expect(screen.queryByText(own.studentName)).not.toBeInTheDocument()
+  expect(screen.queryByRole('region', { name: 'Group 1' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Refresh groups' }))
+  await waitFor(() => expect(api.getGrouping).toHaveBeenCalledTimes(2))
+  expect(api.joinEmptyGroup).not.toHaveBeenCalled()
+})
+
+test('successful join that crosses cutoff stays confirmed and hides partial membership', async () => {
+  const user = userEvent.setup(); vi.mocked(api.joinEmptyGroup).mockResolvedValue({ activityId: 'activity', status: 'FINALIZING', ownGroupId: null, groups: [] }); mount(); await confirm(user)
+  expect(await screen.findByText('Your join was confirmed.')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Grouping is finalizing' })).toBeInTheDocument()
+  expect(screen.queryByText(own.studentName)).not.toBeInTheDocument()
+})
+
+test('late discovery cannot replace the next course', async () => {
+  let finish!: (data: api.GroupDiscovery) => void
+  vi.mocked(api.getGrouping).mockReturnValueOnce(new Promise(resolve => { finish = resolve })).mockResolvedValueOnce({ activityId: null, status: 'ABSENT', ownGroupId: null, groups: [] })
+  const view = mount(); await waitFor(() => expect(api.getGrouping).toHaveBeenCalledWith(course.id))
+  view.rerender(<Groups course={{ ...course, id: 'next' }} accountId="own" expired={vi.fn()} />)
+  await screen.findByText('No grouping activity yet')
+  await act(async () => { finish(open) })
+  expect(screen.queryByText(peer.studentName)).not.toBeInTheDocument()
+})
+
+
+test('other conflict reconciles current closed state without another command', async () => {
+  const user = userEvent.setup(); vi.mocked(api.joinEmptyGroup).mockRejectedValue(new api.ApiError(409, 'conflict', 'ACTIVITY_CLOSED'))
+  vi.mocked(api.getGrouping).mockResolvedValueOnce(open).mockResolvedValue({ activityId: 'activity', status: 'FINALIZING', ownGroupId: null, groups: [] })
+  mount(); await confirm(user)
+  expect(await screen.findByRole('heading', { name: 'Grouping is finalizing' })).toBeInTheDocument()
+  expect(screen.getByRole('alert')).toHaveTextContent('Joining conditions have changed')
+  expect(api.joinEmptyGroup).toHaveBeenCalledTimes(1)
+})
+
+test('late successful join cannot display old-course membership after navigation', async () => {
+  const user = userEvent.setup(); let finish!: (data: api.GroupDiscovery) => void
+  vi.mocked(api.joinEmptyGroup).mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+  vi.mocked(api.getGrouping).mockResolvedValueOnce(open).mockResolvedValueOnce({ activityId: null, status: 'ABSENT', ownGroupId: null, groups: [] })
+  const view = mount(); await confirm(user)
+  await screen.findByText('Confirming your join…')
+  view.rerender(<Groups course={{ ...course, id: 'next' }} accountId="own" expired={vi.fn()} />)
+  await screen.findByText('No grouping activity yet')
+  await act(async () => { finish(joined) })
+  expect(screen.queryByText('Your join was confirmed.')).not.toBeInTheDocument()
+  expect(screen.queryByText(own.studentName)).not.toBeInTheDocument()
+})
+
+
+test('application is deliberate, reserves no place and hides known pending resubmission', async () => {
+  vi.mocked(api.applyToGroup).mockResolvedValue({ activityId: 'activity', status: 'OPEN', items: [{ id: 'a', groupId: 'g2', groupName: 'Group 2', applicant: own, manager: peer, status: 'PENDING', reason: null, createdAt: '2026-10-15T04:00:00Z' }], nextCursor: null })
+  const user = userEvent.setup(); mount()
+  await user.click(await screen.findByRole('button', { name: 'Apply to Group 2' }))
+  expect(screen.getByRole('dialog')).toHaveTextContent('does not join the group or reserve a place')
+  expect(api.applyToGroup).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: 'Cancel' }))
+  expect(screen.getByRole('button', { name: 'Apply to Group 2' })).toHaveFocus()
+  await user.click(screen.getByRole('button', { name: 'Apply to Group 2' }))
+  await user.click(screen.getByRole('button', { name: 'Confirm application' }))
+  expect(await screen.findByRole('status')).toHaveTextContent('Application recorded. It reserves no place.')
+  expect(screen.getByText(/Application pending/)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Apply to Group 2' })).not.toBeInTheDocument()
+  expect(screen.getByText('1 available / 2 places')).toBeInTheDocument()
+  expect(api.joinEmptyGroup).not.toHaveBeenCalled()
+})
+
+test('application lost response requires both history and groups, never automatic replay', async () => {
+  vi.mocked(api.applyToGroup).mockRejectedValueOnce(new TypeError('lost'))
+  const user = userEvent.setup(); mount()
+  await user.click(await screen.findByRole('button', { name: 'Apply to Group 2' }))
+  await user.click(screen.getByRole('button', { name: 'Confirm application' }))
+  await screen.findByText('Check groups before continuing')
+  vi.mocked(api.getApplications).mockRejectedValueOnce(new Error('history offline'))
+  await user.click(screen.getByRole('button', { name: 'Check current groups' }))
+  await waitFor(() => expect(api.getApplications).toHaveBeenCalledTimes(2))
+  expect(screen.queryByRole('button', { name: 'Apply to Group 2' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Check current groups' }))
+  await screen.findByRole('button', { name: 'Apply to Group 2' })
+  expect(api.applyToGroup).toHaveBeenCalledTimes(1)
+})
+
+test('application conflict reads current state before a new explicit key can be used', async () => {
+  vi.mocked(api.applyToGroup).mockRejectedValueOnce(new api.ApiError(409, 'duplicate')).mockResolvedValue({ activityId: 'activity', status: 'OPEN', items: [], nextCursor: null })
+  const user = userEvent.setup(); mount()
+  for (let index = 0; index < 2; index++) {
+    await user.click(await screen.findByRole('button', { name: 'Apply to Group 2' }))
+    await user.click(screen.getByRole('button', { name: 'Confirm application' }))
+    await waitFor(() => expect(api.applyToGroup).toHaveBeenCalledTimes(index + 1))
+  }
+  await screen.findByText(/Application recorded/)
+  expect(api.getApplications).toHaveBeenCalledTimes(2)
+  expect(vi.mocked(api.applyToGroup).mock.calls[0][2].commandKey).not.toBe(vi.mocked(api.applyToGroup).mock.calls[1][2].commandKey)
+})
