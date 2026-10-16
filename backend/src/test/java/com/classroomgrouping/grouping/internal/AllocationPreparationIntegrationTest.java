@@ -160,7 +160,8 @@ class AllocationPreparationIntegrationTest {
         var f=fixture(4,true);List<?> saved;
         try(var first=startApplication()) {
             assertInstanceOf(DatabaseDueWork.class,first.getBean(DueWork.class));
-            await().atMost(Duration.ofSeconds(10)).untilAsserted(()->assertEquals("COMPLETE",state(f.activity())));
+            await().atMost(Duration.ofSeconds(10)).untilAsserted(()->assertEquals(List.of("COMPLETE"),
+                    jdbc.queryForList("SELECT state FROM allocation_work WHERE activity_id=?",String.class,f.activity())));
             saved=plan(f.activity());
         }
         try(var restarted=startApplication()) {

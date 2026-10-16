@@ -1,6 +1,6 @@
 # Slice 11 — Safe finalized CSV export
 
-**Completed locally.** Slice10 is verified and committed as `d126f60`. Backend CSV/safety and frontend download work have separate Implementer ownership. No export checkpoint is claimed yet.
+**Completed locally.** Slice10 is verified and committed as `d126f60`. Backend CSV/safety and frontend download work have separate Implementer ownership. The local export checkpoint passed the checks and independent review below.
 
 The agreed endpoint is teacher-only `GET /api/courses/{courseId}/results/roster.csv`. It consumes the existing freshly authorized complete finalized snapshot, prepares the whole file in memory, and returns a safe UUID attachment filename with private/no-store handling. The exact columns are Group name, Student ID, Student name. Group ordering is numeric ordinal, followed by Java's deterministic textual Student ID ordering. IDs remain unchanged, including leading zeros. Output uses pinned Commons CSV, RFC4180 comma quoting, CRLF and UTF8 BOM; About me is excluded.
 

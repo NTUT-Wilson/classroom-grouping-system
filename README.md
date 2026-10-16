@@ -96,7 +96,7 @@ cd ../backend
 .\mvnw.cmd verify
 ```
 
-Backend verification requires Docker and uses isolated, automatically cleaned PostgreSQL Testcontainers; it does not use or reset your development database. Tests cover fresh/upgrade migrations, provisioning rollback/repetition/concurrency, role/course authorization, real JDBC sessions, CSRF, expiry/logout/restart behavior, module boundaries, scheduler authorization, and a **test-only** durable deadline probe. The probe does not establish allocation correctness.
+Backend verification requires Docker and uses isolated, automatically cleaned PostgreSQL Testcontainers; it does not use or reset your development database. Tests cover fresh/upgrade migrations, provisioning rollback/repetition/concurrency, role/course authorization, real JDBC sessions, CSRF, expiry/logout/restart behavior, module boundaries, scheduler authorization, and a **test-only** durable deadline probe. The probe does not establish allocation correctness. Separate production tests cover immutable saved plans, database-clock races, capped retries/integrity halt, actual PostgreSQL outage/startup recovery, atomic completion, complete authorized result snapshots and safe exact CSV output.
 
 With the built backend running against a fresh disposable database, all three opt-in setup flags enabled (`APP_DEMO_ENABLED`, `APP_ROSTER_ENABLED`, `APP_BATCH_FIXTURE_ENABLED`), and `DEMO_USERNAME`, `DEMO_PASSWORD`, `ROSTER_TEACHER_PASSWORD`, `ROSTER_STUDENT_PASSWORD`, and `BATCH_FIXTURE_PASSWORD` set in your terminal, plus the same `SCHEDULER_SECRET` supplied to the backend and Node test process:
 

@@ -2,6 +2,8 @@
 
 **Status: preparation complete; hosted execution blocked by account access.** This is a validation checklist for the approved provisional Render Free + Neon Free direction, not a deployment record or a new product requirement. No paid service or scheduler provider is selected here. Use synthetic accounts and disposable probe data only.
 
+Local implementation now includes durable allocation, final results and CSV; see [Batch2 evidence](slices-8-12.md). The dated provider/access observations below remain historical and do not establish current account allowances or hosted suitability.
+
 ## Current access and limits
 
 On 2026-10-13, Render and Neon integrations were discoverable but not installed/connected. No Render/Neon credential environment variables were available. GitHub was subsequently connected and confirmed that the configured repository is private. The current committed baseline has no returned commit-status entries or PR-triggered workflow runs; the latter lookup does not cover push-triggered runs. The revised files are local and have no remote CI result. Private-runner included usage/spending controls must be verified before triggering CI under the no-cost constraint.
@@ -49,3 +51,9 @@ No hosted checklist item or private GitHub CI gate is satisfied by this work. Ac
 Local Slice9 now verifies real saved-plan allocation and atomic finalization, including actual disposable PostgreSQL outage/restart and startup recovery. [Slice9](slice-9.md) records current full146-test and selected browser evidence. This replaces only the earlier local placeholder limitation; no hosted checklist item, unattended external service, backup restore, remote CI or quota gate is satisfied.
 
 Local Slice10 adds complete authorized results: frontend161/build, full155-test backend and23 packaged-jar browser workflows passed; see [Slice10](slice-10.md). These local results do not satisfy hosted/remote CI gates, and current batch image/export acceptance remains pending.
+
+## Current Batch 2 local verification — 2026-10-16
+
+[Slice12](slice-12.md) records current frontend178/build, full Maven163 real PostgreSQL/ArchUnit tests, complete jar23/image23 Chromium workflows and prototype7. Current image build/runtime passed UID10001/configured512MiB/health200/anonymous401/authenticated production204/no OOM/restarts, with bounded281.8–326.9MiB samples. Separate fresh local jar/image databases and retained prior data were used; temporary owned services stopped. These are local functional and runtime results, not a provider simulation, peak-load proof, unattended hosted service or remote CI result.
+
+Every hosted checklist item and the private GitHub no-cost allowance/actual CI run remain open. External scheduler/provider/cadence, monitoring/missed-run detection, combined quota/recovery validation, backup/restore arrangements and final resource tuning need the existing separate follow-up/authorization; no cloud resources, paid execution, push/PR or deployment occurred.

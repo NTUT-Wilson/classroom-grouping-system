@@ -1,5 +1,7 @@
 # Initial Project Foundation
 
+**Current local implementation:** Slices1–12 are implemented and locally verified, including final complete jar/image/prototype acceptance and three independent source reviews. Read [Batch2 evidence](slices-8-12.md) for the latest checkpoint. The initial2026-10-13 sections below are historical: Courses/Results are implemented, and the production scheduler now returns authenticated204 for bounded real allocation work. Remote CI allowance and hosted/operational gates remain open.
+
 **Phase:** Local foundation setup, 2026-10-13. Product behavior remains governed by [PRD.md](PRD.md); technical direction remains governed by [tech-stack.md](tech-stack.md). This work does not implement V1 business workflows or confirm a cloud deployment.
 
 ## Established
@@ -127,3 +129,11 @@ Slice8 checkpoint subsequently passed full Maven134 tests with no failures/error
 Slice9 subsequently passed full Maven146 tests (including25 production allocation/recovery cases),4 selected packaged-jar cutoff workflows, actual complete allocation/managerless-group/read-only observations and independent review. V8 saved plans survive V9 upgrade; actual disposable PostgreSQL outage/restart recovers through production DueWork. See [Slice9](slice-9.md). These are local functional checks; no final-result UI, CSV, whole-batch image acceptance, remote CI, hosted reliability or backup restore is claimed by this checkpoint.
 
 Slice10 local checkpoint now passes frontend161/build, full Maven155 PostgreSQL/ArchUnit tests and all23 packaged-jar browser workflows, with authorized complete teacher/student results and independent review. [Slice10](slice-10.md) retains initial failures and exact scope. Current image/CSV/whole-batch acceptance is still pending; hosted and remote gates remain open.
+
+## Batch 2 final local evidence — 2026-10-16
+
+Current final frontend178 tests/build, corrected full Java25 Maven163 tests (0 failures/errors/skips), all23 packaged-jar and all23 current-image Chromium workflows (one worker/zero retries), prototype7 and CI YAML/six Bash syntax checks passed. Real PostgreSQL17.11 covers fresh/upgrade migrations, production preparation/completion/recovery, authorization and CSV; [Slice12](slice-12.md) preserves exact scenarios and initial failures. The one final startup-poll test error was corrected narrowly and reverified through25 focused cases and the complete163-test run; production code was unchanged.
+
+Current local image SHA25637469b16a6f7a9a2fa7a0aa4ddbc3380d714b04b9657d124ce9f2870852b6209 passed UID10001,configured512MiB,health200,anonymous scheduler401/authenticated204,no OOM/restarts before/after the full browser run. Samples281.8/295/316.4/326.9MiB are bounded local observations,not peak or hosted capacity evidence. Only owned temporary app/image/database services were stopped; data and unrelated services remain preserved. Whole-batch review results are recorded in the linked acceptance report.
+
+These results resolve the current local Docker/Testcontainers/image checks, while historical socket/501-placeholder evidence above remains intact. Private remote CI/no-cost allowance, hosted cold starts/unattended external scheduling/missed-run monitoring/combined quotas/recovery remain open; backups/restore arrangements and final resource tuning remain deferred. Foundation/hosting are not fully validated and no hosted readiness is claimed.
