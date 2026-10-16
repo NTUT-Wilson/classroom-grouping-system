@@ -98,6 +98,6 @@ jobs:
           test "$(curl --silent -o /dev/null -w '%{http_code}' -X POST "$E2E_BASE_URL/internal/scheduler/tick")" = 401
           test "$(curl --silent -o /dev/null -w '%{http_code}' -X POST \
             -H 'Authorization: Bearer ci-only-scheduler-secret-at-least-32-bytes' \
-            "$E2E_BASE_URL/internal/scheduler/tick")" = 501
+            "$E2E_BASE_URL/internal/scheduler/tick")" = 204
           cd frontend
           npm run test:e2e

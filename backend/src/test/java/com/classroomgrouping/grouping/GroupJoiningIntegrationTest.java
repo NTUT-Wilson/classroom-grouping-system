@@ -214,7 +214,7 @@ class GroupJoiningIntegrationTest {
         assertEquals(layout,db.queryForList("SELECT id,activity_id,ordinal,capacity FROM activity_group"));
         assertNull(db.queryForMap("SELECT * FROM activity_group").get("manager_account_id"));
         assertEquals(0,db.queryForObject("SELECT count(*) FROM activity_membership",Integer.class));
-        assertEquals(7,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
+        assertEquals(8,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
     }
 }
 

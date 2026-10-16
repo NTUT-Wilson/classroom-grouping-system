@@ -39,3 +39,9 @@ Remote CI must pass for the actual revised commit once GitHub access is availabl
 Docker is now available outside the sandbox. Current local full Maven verification passed all 27 tests, including actual Testcontainers restart/session recovery. The revised image passed local non-root (UID 10001), 512 MiB limit, health/security/501-placeholder, and eight Chromium workflow checks. The earlier Docker/socket findings remain historical; no broad Docker repair was performed by Slice 1.
 
 These local results do not satisfy any hosted checklist item or private remote CI gate. Hosted cold starts, truly unattended scheduling, monitoring, combined quota/recovery checks, backup arrangements, and final resource tuning remain **NOT RUN/deferred**. No external authentication, provider provisioning, paid execution, remote CI run, or deployment occurred.
+
+## Batch 2 local update — 2026-10-16 (implementation in progress)
+
+Docker engine 29.7.2 is currently reachable outside the sandbox. The older socket startup failure remains historical; the current sandbox named-pipe denial is an environment permission boundary. Production durable deadline preparation is being implemented and verified locally; see [Slice 8](slice-8.md) and [batch evidence](slices-8-12.md). The ordinary authenticated scheduler contract is changing from placeholder 501 to 204 for a bounded processing invocation. HTTP success does not prove every activity completed, unattended execution, or hosted reliability.
+
+No hosted checklist item or private GitHub CI gate is satisfied by this work. Account access, no-cost allowance, hosted cold starts, external scheduling, monitoring, recovery and combined quotas remain unverified; backup arrangements and final resource tuning remain deferred. No cloud resource, provider configuration, remote CI run, paid execution or deployment was performed.

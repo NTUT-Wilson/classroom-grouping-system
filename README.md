@@ -2,7 +2,7 @@
 
 Local implementation of the approved V1 modular monolith. React + Vite + TypeScript, Java 25 / Spring Boot 4.1.1, PostgreSQL, Flyway, and Spring Security with JDBC-backed sessions.
 
-Slice 1 adds provisioned teacher/student course lists and authorized course workspaces to the existing authentication. [Slice 2](docs/slice-2.md) connects profiles/About me; [Slice 3](docs/slice-3.md) adds activity creation; [Slice 4](docs/slice-4.md) adds instruction edits, deadline extensions and safe status reads. [Slice 5](docs/slice-5.md) adds student discovery and deliberate empty-group joining. [Slice 6](docs/slice-6.md) adds private applications, manager decisions and retained history. [Slice 7](docs/slice-7.md) adds invitations and combined request cleanup. Allocation, final results, exports, and administration are **not implemented**. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), [Slice 1 evidence](docs/slice-1.md), and [foundation verification record](docs/foundation.md).
+Slice 1 adds provisioned teacher/student course lists and authorized course workspaces to the existing authentication. [Slice 2](docs/slice-2.md) connects profiles/About me; [Slice 3](docs/slice-3.md) adds activity creation; [Slice 4](docs/slice-4.md) adds instruction edits, deadline extensions and safe status reads. [Slice 5](docs/slice-5.md) adds student discovery and deliberate empty-group joining. [Slice 6](docs/slice-6.md) adds private applications, manager decisions and retained history. [Slice 7](docs/slice-7.md) adds invitations and combined request cleanup. [Slice8](docs/slice-8.md) adds durable deadline preparation and saved plans. Assignment, final results, exports, and administration are **not implemented**. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), [Slice 1 evidence](docs/slice-1.md), and [foundation verification record](docs/foundation.md).
 
 ## Prerequisites
 
@@ -124,8 +124,7 @@ Compose's optional app profile publishes only loopback port 8080 and uses the lo
 No cloud deployment or provider provisioning has been performed. Render Free, Neon Free, external scheduler selection, quotas, monitoring, and backup arrangements remain subject to the approved validation gates.
 
 The remaining hosted checks and account-access requirements are recorded in
-[hosting-validation.md](docs/hosting-validation.md). The scheduler's 501 response
-must never be treated as proof that deadline work completed.
+[hosting-validation.md](docs/hosting-validation.md). Scheduler HTTP success alone must never be treated as proof that allocation or hosted deadline work completed.
 
 ## Password-hashing measurement
 
@@ -164,7 +163,7 @@ suite or prove hosted behavior.
 
 `POST /internal/scheduler/tick` requires `Authorization: Bearer <SCHEDULER_SECRET>`. The secret must be at least 32 bytes when configured; with no secret, the endpoint rejects all calls. It is stateless and cannot authorize browser sessions. Its dedicated security chain is the only CSRF exemption; login/logout and other browser mutations remain protected.
 
-The production `DueWork` implementation deliberately returns **501 Not Implemented**: deadline allocation is not a foundation feature. Do not treat endpoint reachability as completed allocation. Local timer/catch-up adapters are disabled by default; the integration suite enables them with a test-only PostgreSQL probe to verify automatic invocation and safe duplicate probe processing.
+The production `DueWork` implementation prepares durable allocation plans for due activities and expires pending requests. An authenticated tick returns **204 No Content** after its bounded processing invocation; this does not mean every activity completed successfully. Integrity faults halt affected work; transient failures retain durable capped-backoff retries. Preparation does not yet apply memberships or finalize results. Local timer/catch-up adapters remain disabled by default; `--app.scheduler.enabled=true` enables startup catch-up and periodic reconciliation. Foundation tests retain their separate test-only probe; production preparation has its own PostgreSQL coverage.
 
 Runtime defaults are conservative starting points, not validated cloud budgets: JDBC pool maximum 5, minimum idle 0, keepalive disabled, connection timeout 10 seconds, session idle timeout 30 minutes, expired-session cleanup hourly, and temporary login throttling at 100 attempts per minute per remote address with bounded memory. These must be tuned against actual hosting, shared-client networks, database usage, and security measurements. Cleanup cadence does not extend logical session validity.
 
