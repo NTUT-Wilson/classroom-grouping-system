@@ -54,7 +54,7 @@ class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/courses/*/activity").hasRole("TEACHER")
                         .requestMatchers(HttpMethod.PUT, "/api/courses/*/activity/instructions").hasRole("TEACHER")
                         .requestMatchers(HttpMethod.POST, "/api/courses/*/activity/deadline").hasRole("TEACHER")
-                        .requestMatchers(HttpMethod.GET, "/api/courses/*/results/roster").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.GET, "/api/courses/*/results/roster", "/api/courses/*/results/roster.csv").hasRole("TEACHER")
                         .requestMatchers(HttpMethod.GET, "/api/courses/*/results/my-group").hasRole("STUDENT")
                         .requestMatchers(HttpMethod.GET, "/api/courses/*/grouping").hasRole("STUDENT")
                         .requestMatchers(HttpMethod.POST, "/api/courses/*/groups/*/join").hasRole("STUDENT")

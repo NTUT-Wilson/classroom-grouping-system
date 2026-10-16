@@ -1,13 +1,37 @@
 import { useEffect, useRef, useState } from 'react'
-import { ApiError, getResults } from './api'
+import { ApiError, getResults, getRosterCsv } from './api'
 import type { Course, FinalResults } from './api'
 
 export function Results({ course, role, expired }: { course: Course; role: 'TEACHER' | 'STUDENT'; expired: () => void }) {
   const [data, setData] = useState<FinalResults | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'error' | 'denied'>('loading')
   const generation = useRef(0)
+  const downloadGeneration = useRef(0)
+  const [download, setDownload] = useState<'idle' | 'loading' | 'error' | 'done'>('idle')
+  async function downloadCsv() {
+    const request = ++downloadGeneration.current
+    setDownload('loading')
+    try {
+      const file = await getRosterCsv(course.id)
+      if (request !== downloadGeneration.current) return
+      const url = URL.createObjectURL(file.blob)
+      const anchor = document.createElement('a')
+      try {
+        anchor.href = url; anchor.download = file.filename
+        document.body.append(anchor); anchor.click()
+      } finally { anchor.remove(); URL.revokeObjectURL(url) }
+      setDownload('done')
+    } catch (cause) {
+      if (request !== downloadGeneration.current) return
+      if (cause instanceof ApiError && [401, 403, 404].includes(cause.status)) {
+        generation.current++; setData(null); setState('denied'); setDownload('idle')
+        if (cause.status === 401) expired()
+      } else setDownload('error')
+    }
+  }
   async function load() {
     const request = ++generation.current
+    downloadGeneration.current++; setDownload('idle')
     setData(null); setState('loading')
     try {
       const result = await getResults(course.id, role)
@@ -21,10 +45,11 @@ export function Results({ course, role, expired }: { course: Course; role: 'TEAC
       if (cause instanceof ApiError && cause.status === 401) expired()
     }
   }
-  useEffect(() => { void load(); return () => { generation.current++ } }, [course.id, role])
+  useEffect(() => { void load(); return () => { generation.current++; downloadGeneration.current++ } }, [course.id, role])
   const finalized = data?.status === 'FINALIZED'
   return <section className="results-workspace" aria-label={role === 'TEACHER' ? 'Final roster' : 'My final group'}>
     <div className="activity-toolbar"><div><span className="eyebrow">{finalized ? 'GROUPING COMPLETE' : 'COURSE RESULTS'}</span><h2>{role === 'TEACHER' ? 'Final roster' : 'My final group'}</h2></div><button className="secondary-button" disabled={state === 'loading'} onClick={() => void load()}>Refresh results</button></div>
+    {state === 'ready' && finalized && role === 'TEACHER' && <section className="state-panel" aria-label="Roster CSV download"><button className="primary-button" disabled={download === 'loading'} onClick={() => void downloadCsv()}>{download === 'loading' ? 'Preparing CSV…' : download === 'error' ? 'Retry CSV download' : 'Download CSV'}</button><p className="activity-hint">In Excel, import Student ID as text to preserve leading zeros. CSV files do not contain column types.</p>{download === 'loading' && <p role="status">Downloading the complete roster…</p>}{download === 'error' && <p role="alert">The CSV download failed or was interrupted. No file was prepared. Retry CSV download to try again.</p>}{download === 'done' && <p role="status">CSV prepared. Check your browser downloads.</p>}</section>}
     {state === 'loading' ? <section className="state-panel" role="status"><h3>Loading results…</h3><p>Checking the complete result and your access.</p></section>
       : state === 'denied' ? <section className="state-panel"><h3>Results unavailable</h3><p role="alert">This course is unavailable or you do not have access.</p></section>
         : state === 'error' ? <section className="state-panel"><h3>Results are temporarily unavailable</h3><p role="alert">The complete result could not be loaded. Refresh to check again.</p><p>Refreshing only checks the result. It does not restart grouping or change assignments.</p></section>

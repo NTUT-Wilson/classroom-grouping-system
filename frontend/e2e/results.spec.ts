@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import { readFile } from 'node:fs/promises'
 
-type Result = { activityId: string | null; status: string; groups: { id: string; ordinal: number; managerAccountId: string | null; capacity: number; members: { accountId: string; studentId: string; studentName: string; aboutMe?: string }[] }[] }
+type Result = { activityId: string | null; status: string; groups: { id: string; name: string; ordinal: number; managerAccountId: string | null; capacity: number; members: { accountId: string; studentId: string; studentName: string; aboutMe?: string }[] }[] }
 async function login(page: Page, username: string) {
   const password = process.env.BATCH_FIXTURE_PASSWORD
   if (!password) throw new Error('Enable opt-in batch fixture and set BATCH_FIXTURE_PASSWORD')
@@ -18,6 +19,14 @@ async function result(page: Page, course: string, teacher = false): Promise<Resu
   const response = await page.request.get(`/api/courses/${course}/results/${teacher ? 'roster' : 'my-group'}`)
   expect(response.status()).toBe(200); return response.json()
 }
+async function downloadCsv(page: Page, name = 'Download CSV') {
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name, exact: true }).click()
+  const file = await pending
+  expect(file.suggestedFilename()).toMatch(/^classroom-groups-[0-9a-f-]{36}\.csv$/)
+  expect(await file.failure()).toBeNull()
+  return readFile((await file.path())!)
+}
 test('complete final roster and own group remain private, read-only and available after profile/instruction edits', async ({ browser, request }, testInfo) => {
   test.setTimeout(120_000)
   const secret = process.env.SCHEDULER_SECRET
@@ -33,6 +42,9 @@ test('complete final roster and own group remain private, read-only and availabl
     expect((await assigned.request.get(`/api/courses/${cutoff}/results/my-group`)).status()).toBe(404)
     expect((await teacher.request.get(`/api/courses/${course}/results/my-group`)).status()).toBe(403)
     expect((await manager.request.get(`/api/courses/${course}/results/roster`)).status()).toBe(403)
+    expect((await manager.request.get(`/api/courses/${course}/results/roster.csv`)).status()).toBe(403)
+    expect((await request.get(`/api/courses/${course}/results/roster.csv`)).status()).toBe(401)
+    expect((await teacher.request.get(`/api/courses/${course}/results/roster.csv`)).status()).toBe(503)
     expect((await manager.request.get('/api/courses/00000000-0000-0000-0000-000000000000/results/my-group')).status()).toBe(404)
     const deadline = new Date(Date.now() + 16_000).toISOString()
     expect((await post(teacher, `/api/courses/${course}/activity`, { instructions: 'Synthetic final results <plain text>', deadline, capacities: [2, 2, 2, 2] })).status()).toBe(200)
@@ -43,9 +55,11 @@ test('complete final roster and own group remain private, read-only and availabl
     const before = await result(teacher, course, true); expect(before.status).toBe('OPEN'); expect(before.groups).toEqual([])
     await teacher.goto(`/#/courses/${course}/results`)
     await expect(teacher.getByRole('heading', { name: 'Results come after the deadline' })).toBeVisible()
+    await expect(teacher.getByRole('button', { name: /CSV/ })).toHaveCount(0)
     await expect.poll(async () => (await result(teacher, course, true)).status, { timeout: 25_000 }).toBe('FINALIZING')
     await teacher.getByRole('button', { name: 'Refresh results' }).click()
     await expect(teacher.getByRole('heading', { name: 'Grouping is finalizing' })).toBeVisible()
+    await expect(teacher.getByRole('button', { name: /CSV/ })).toHaveCount(0)
     expect((await result(teacher, course, true)).groups).toEqual([])
     // This Node-only machine request uses the production endpoint; no secret enters a browser context.
     expect((await request.post('/internal/scheduler/tick', { headers: { Authorization: `Bearer ${secret}` } })).status()).toBe(204)
@@ -63,11 +77,30 @@ test('complete final roster and own group remain private, read-only and availabl
     const snapshot = roster.groups.map(value => ({ id: value.id, manager: value.managerAccountId, members: value.members.map(member => member.accountId) }))
     await teacher.getByRole('button', { name: 'Refresh results' }).click()
     await expect(teacher.getByText('00007001', { exact: false })).toBeVisible()
-    await expect(teacher.getByRole('button', { name: /CSV|assign|retry/i })).toHaveCount(0)
+    await expect(teacher.getByRole('button', { name: /assign|retry/i })).toHaveCount(0)
+    await expect(teacher.getByText(/import Student ID as text/)).toBeVisible()
+    const csv = await downloadCsv(teacher)
+    const cell = (value: string) => /[",\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value
+    const expectedRows = [...roster.groups].sort((a, b) => a.ordinal - b.ordinal).flatMap(value => [...value.members].sort((a, b) => a.studentId < b.studentId ? -1 : a.studentId > b.studentId ? 1 : 0).map(member => [value.name, member.studentId, member.studentName].map(cell).join(',')))
+    expect(csv.subarray(0, 3)).toEqual(Buffer.from([0xef, 0xbb, 0xbf]))
+    expect(csv).toEqual(Buffer.from('\uFEFFGroup name,Student ID,Student name\r\n' + expectedRows.join('\r\n') + '\r\n', 'utf8'))
+    expect(expectedRows).toHaveLength(8)
+    expect(await downloadCsv(teacher)).toEqual(csv)
+    let downloads = 0
+    teacher.on('download', () => { downloads++ })
+    let attempts = 0
+    await teacher.route(`**/api/courses/${course}/results/roster.csv`, route => { attempts++; return route.abort('failed') })
+    await teacher.getByRole('button', { name: 'Download CSV', exact: true }).click()
+    await expect(teacher.getByRole('alert')).toContainText('failed or was interrupted')
+    expect(downloads).toBe(0); expect(attempts).toBe(1)
+    await teacher.unroute(`**/api/courses/${course}/results/roster.csv`)
+    expect(await downloadCsv(teacher, 'Retry CSV download')).toEqual(csv)
+    expect(downloads).toBe(1)
     await assigned.goto(`/#/courses/${course}/groups`); await assigned.reload()
     await expect(assigned.getByRole('heading', { name: 'My final group' })).toBeVisible()
     await expect(assigned.getByRole('region', { name: /^Group \d+$/ })).toHaveCount(1)
     await expect(assigned.getByRole('button', { name: /join|apply|invite/i })).toHaveCount(0)
+    await expect(assigned.getByRole('button', { name: /CSV/ })).toHaveCount(0)
     expect(await assigned.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await assigned.screenshot({ path: testInfo.outputPath('own-final-group-mobile.png'), fullPage: true })
     await teacher.screenshot({ path: testInfo.outputPath('final-roster-desktop.png'), fullPage: true })
@@ -105,6 +138,7 @@ test('complete final roster and own group remain private, read-only and availabl
     expect((await result(teacher, course, true)).groups.map(value => ({ id: value.id, manager: value.managerAccountId, members: value.members.map(member => member.accountId) }))).toEqual(snapshot)
     await teacher.goto(`/#/courses/${course}/results`)
     await expect(teacher.getByText('Student ID · 00007001')).toBeVisible()
+    expect(await downloadCsv(teacher)).toEqual(csv)
     await teacher.route(`**/api/courses/${course}/results/roster`, route => route.abort('failed'))
     await teacher.getByRole('button', { name: 'Refresh results' }).click()
     await expect(teacher.getByRole('alert')).toContainText('complete result could not be loaded')

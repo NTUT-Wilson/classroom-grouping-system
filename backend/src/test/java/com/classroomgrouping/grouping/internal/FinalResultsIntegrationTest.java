@@ -168,4 +168,54 @@ class FinalResultsIntegrationTest {
         assertEquals(oldName,member.studentName());assertEquals("<plain> About 😀 0",member.aboutMe());
         var current=mine(f,0).groups().getFirst().members().stream().filter(m->m.accountId().equals(id)).findFirst().orElseThrow();assertEquals("New identity",current.studentName());assertEquals("New introduction",current.aboutMe());
     }
+    private void noCsv(HttpResponse<String> response, int status) {
+        assertEquals(status,response.statusCode());
+        assertTrue(response.headers().firstValue("Content-Disposition").isEmpty());
+        assertFalse(response.body().startsWith("\ufeffGroup name"));
+        assertFalse(response.body().contains("studentName"));
+    }
+    @Test void csvUsesFreshTeacherAuthorizationAndRejectsUnavailableSnapshotsWithoutAttachment()throws Exception{
+        var f=fixture();String path=base(f)+"/results/roster.csv";var teacher=login(f.teacher());var student=login(f.students().getFirst());
+        noCsv(get(client(),path),401);noCsv(get(student,path),403);noCsv(get(teacher,path),503);
+        jdbc.update("UPDATE grouping_activity SET deadline=clock_timestamp()-interval '1 second' WHERE id=?",f.activity());
+        var before=domain(f);noCsv(get(teacher,path),503);assertEquals(before,domain(f));
+        finish(f);var other=fixture();noCsv(get(teacher,base(other)+"/results/roster.csv"),404);
+        jdbc.update("DELETE FROM course_teacher_assignment WHERE course_id=? AND account_id=?",f.course(),f.teacher());
+        noCsv(get(teacher,path),404);
+        jdbc.update("UPDATE spring_session SET last_access_time=0,expiry_time=0");noCsv(get(teacher,path),401);
+    }
+    @Test void csvContainsCompleteExactFinalSnapshotAndIsStableAcrossReadOnlyDownloadsAndPermittedEdits()throws Exception{
+        var f=fixture();memberships.joinEmpty(()->f.students().getFirst().toString(),f.course(),f.groups().getFirst(),UUID.randomUUID());finish(f);
+        jdbc.update("UPDATE student_identity SET student_name=? WHERE account_id=?","陳, \"Synthetic\" 🧑🏽‍🎓",f.students().getFirst());
+        var teacher=login(f.teacher());String path=base(f)+"/results/roster.csv";var before=domain(f);var response=get(teacher,path);
+        assertEquals(200,response.statusCode());assertEquals("text/csv;charset=UTF-8",response.headers().firstValue("Content-Type").orElseThrow());
+        assertEquals("attachment; filename=\"classroom-groups-"+f.activity()+".csv\"",response.headers().firstValue("Content-Disposition").orElseThrow());
+        assertEquals("private, no-store",response.headers().firstValue("Cache-Control").orElseThrow());assertEquals("nosniff",response.headers().firstValue("X-Content-Type-Options").orElseThrow());
+        assertTrue(response.body().startsWith("\ufeffGroup name,Student ID,Student name\r\n"));
+        assertFalse(response.body().contains("About"));assertFalse(response.body().replace("\r\n","").contains("\n"));
+        try(var parser=org.apache.commons.csv.CSVFormat.RFC4180.parse(new java.io.StringReader(response.body().substring(1)))) {
+            var records=parser.getRecords();assertEquals(5,records.size());assertEquals(List.of("Group name","Student ID","Student name"),records.getFirst().toList());
+            var expected=roster(f).groups().stream().flatMap(g->g.members().stream().map(m->List.of(g.name(),m.studentId(),m.studentName()))).toList();
+            assertEquals(expected,records.stream().skip(1).map(org.apache.commons.csv.CSVRecord::toList).toList());
+            assertEquals(4,records.stream().skip(1).map(r->r.get(1)).distinct().count());
+        }
+        assertEquals(response.body(),get(teacher,path).body());assertEquals(before,domain(f));
+        profiles.save(()->f.students().getFirst().toString(),f.course(),"Changed About me");
+        activities.updateInstructions(()->f.teacher().toString(),f.course(),UUID.randomUUID(),"Changed instruction");
+        assertEquals(response.body(),get(teacher,path).body());
+    }
+    @Test void csvRejectsWholeIncompleteOrUnsafeFinalSnapshotSafelyAndDoesNotMutate()throws Exception{
+        var f=fixture();finish(f);var teacher=login(f.teacher());String path=base(f)+"/results/roster.csv";
+        UUID last=roster(f).groups().getLast().members().getLast().accountId();
+        for(String unsafe:List.of("=1","\u00a0\u200d﹫formula","Unsafe\r\nName","\ufeffName")) {
+            jdbc.update("UPDATE student_identity SET student_name=? WHERE account_id=?",unsafe,last);
+            var before=domain(f);var response=get(teacher,path);noCsv(response,503);
+            assertEquals("RESULTS_UNAVAILABLE",JsonPath.read(response.body(),"$.code"));assertFalse(response.body().contains(unsafe));assertFalse(response.body().contains("SQL"));assertEquals(before,domain(f));
+        }
+        jdbc.update("UPDATE student_identity SET student_name='Safe' WHERE account_id=?",last);
+        jdbc.update("UPDATE student_identity SET student_id='＋unsafe' WHERE account_id=?",last);noCsv(get(teacher,path),503);
+        jdbc.update("UPDATE student_identity SET student_id=? WHERE account_id=?","000"+last,last);
+        jdbc.update("DELETE FROM activity_membership WHERE activity_id=? AND account_id=?",f.activity(),last);
+        var before=domain(f);noCsv(get(teacher,path),503);assertEquals(before,domain(f));
+    }
 }

@@ -2,7 +2,7 @@
 
 Local implementation of the approved V1 modular monolith. React + Vite + TypeScript, Java 25 / Spring Boot 4.1.1, PostgreSQL, Flyway, and Spring Security with JDBC-backed sessions.
 
-Slice 1 adds provisioned teacher/student course lists and authorized course workspaces to the existing authentication. [Slice 2](docs/slice-2.md) connects profiles/About me; [Slice 3](docs/slice-3.md) adds activity creation; [Slice 4](docs/slice-4.md) adds instruction edits, deadline extensions and safe status reads. [Slice 5](docs/slice-5.md) adds student discovery and deliberate empty-group joining. [Slice 6](docs/slice-6.md) adds private applications, manager decisions and retained history. [Slice 7](docs/slice-7.md) adds invitations and combined request cleanup. [Slice8](docs/slice-8.md) adds durable deadline preparation and saved plans. [Slice9](docs/slice-9.md) adds atomic assignment/finalization and preserved-plan recovery. [Slice10](docs/slice-10.md) adds authorized finalized teacher rosters and student own-group results. CSV export is next; administration is outside this V1 scope. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), [Slice 1 evidence](docs/slice-1.md), and [foundation verification record](docs/foundation.md).
+Slice 1 adds provisioned teacher/student course lists and authorized course workspaces to the existing authentication. [Slice 2](docs/slice-2.md) connects profiles/About me; [Slice 3](docs/slice-3.md) adds activity creation; [Slice 4](docs/slice-4.md) adds instruction edits, deadline extensions and safe status reads. [Slice 5](docs/slice-5.md) adds student discovery and deliberate empty-group joining. [Slice 6](docs/slice-6.md) adds private applications, manager decisions and retained history. [Slice 7](docs/slice-7.md) adds invitations and combined request cleanup. [Slice8](docs/slice-8.md) adds durable deadline preparation and saved plans. [Slice9](docs/slice-9.md) adds atomic assignment/finalization and preserved-plan recovery. [Slice10](docs/slice-10.md) adds authorized finalized teacher rosters and student own-group results. [Slice11](docs/slice-11.md) adds safe teacher-only finalized CSV export; administration is outside this V1 scope. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), [Slice 1 evidence](docs/slice-1.md), and [foundation verification record](docs/foundation.md).
 
 ## Prerequisites
 
@@ -176,3 +176,9 @@ docker compose --profile app stop
 ```
 
 Stop any directly launched backend/Vite processes in their own terminal. Do not use volume removal or database reset as a normal setup/recovery step.
+
+### Final roster CSV
+
+After complete finalization, the assigned teacher can choose **Download CSV** in Final roster. The fresh authorized endpoint is `GET /api/courses/{courseId}/results/roster.csv`. It returns exactly Group name, Student ID, Student name, ordered by numeric group ordinal then deterministic textual Student ID, with RFC4180 comma quoting, CRLF and UTF8 BOM. Every fixed participant appears once; About me is excluded. The full snapshot and all cells are validated before a successful attachment is created. Unsafe or incomplete data rejects the whole export with safe503 feedback; values are never rewritten. Failed/interrupted downloads require an explicit retry and do not change grouping.
+
+In Excel, import Student ID as text to preserve leading zeros: CSV contains no column-type metadata. IDs remain unchanged in the file. Downloads use private/no-store headers and no durable application file storage.

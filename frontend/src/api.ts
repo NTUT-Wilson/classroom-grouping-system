@@ -156,3 +156,13 @@ export type FinalResults = { activityId: string | null; status: 'ABSENT' | 'OPEN
 export function getResults(id: string, role: 'TEACHER' | 'STUDENT'): Promise<FinalResults> {
   return readCourse(`/api/courses/${encodeURIComponent(id)}/results/${role === 'TEACHER' ? 'roster' : 'my-group'}`)
 }
+export async function getRosterCsv(id: string): Promise<{ blob: Blob; filename: string }> {
+  const response = await fetch(`/api/courses/${encodeURIComponent(id)}/results/roster.csv`, { credentials: 'same-origin', cache: 'no-store' })
+  if (!response.ok) throw new ApiError(response.status, 'CSV download is unavailable. Please retry.')
+  const filename = response.headers.get('Content-Disposition')?.match(/filename="?(classroom-groups-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.csv)"?(?:;|$)/i)?.[1]
+  if (!filename || !/^text\/csv(?:;|$)/i.test(response.headers.get('Content-Type') ?? '')) throw new Error('Invalid CSV response')
+  // Fully buffer first: a broken response body must never create a partial download.
+  const blob = await response.blob()
+  if (!blob.size) throw new Error('Empty CSV response')
+  return { blob, filename }
+}

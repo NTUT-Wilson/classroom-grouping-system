@@ -16,6 +16,15 @@ public class FinalResultsController {
     public GroupingResults.Result roster(Principal principal, @PathVariable UUID courseId) {
         return results.roster(principal, courseId);
     }
+    @GetMapping("/api/courses/{courseId}/results/roster.csv")
+    public ResponseEntity<byte[]> csv(Principal principal, @PathVariable UUID courseId) {
+        var snapshot = results.roster(principal, courseId);
+        byte[] body = FinalRosterCsv.format(snapshot);
+        return ResponseEntity.ok().header("Content-Type", "text/csv;charset=UTF-8")
+                .header("Content-Disposition", "attachment; filename=\"classroom-groups-" + snapshot.activityId() + ".csv\"")
+                .header("Cache-Control", "private, no-store").header("X-Content-Type-Options", "nosniff")
+                .body(body);
+    }
     @GetMapping("/api/courses/{courseId}/results/my-group")
     public GroupingResults.Result myGroup(Principal principal, @PathVariable UUID courseId) {
         return results.myGroup(principal, courseId);

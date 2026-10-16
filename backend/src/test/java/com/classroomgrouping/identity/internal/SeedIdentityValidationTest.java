@@ -12,7 +12,7 @@ class SeedIdentityValidationTest {
     }
     @Test void rejectsFormulaPrefixesControlsAndLocaleVariantsWithoutRewriting() {
         for (String unsafe : new String[]{"=SUM(1)", "+1", "-1", "@SUM(1)", "  =1", "\u00a0＠SUM(1)",
-                "＝1", "＋1", "－1", "﹦1", "\t123", "12\n34", "\r123", "12\u000034", "\ufeff123", "\ud800"}) {
+                "＝1", "＋1", "－1", "﹦1", "\t123", "12\n34", "\r123", "12\u000034", "\ufeff123", "\ud800", "\u00a0\u200c\u200d"}) {
             assertThrows(IllegalArgumentException.class, () -> SeedIdentityValidation.text(unsafe));
         }
     }
