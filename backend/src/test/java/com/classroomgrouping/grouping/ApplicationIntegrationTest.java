@@ -199,10 +199,13 @@ class ApplicationIntegrationTest {
         db.update("INSERT INTO activity_participant VALUES (?,?)",activity,student);db.update("INSERT INTO activity_group(id,activity_id,ordinal,capacity) VALUES (?,?,1,2)",group,activity);
         db.update("INSERT INTO activity_membership VALUES (?,?,?)",activity,student,group);db.update("UPDATE activity_group SET manager_account_id=? WHERE id=?",student,group);
         db.update("INSERT INTO grouping_command_receipt VALUES (?,'JOIN_EMPTY_GROUP',?,'preserved-fingerprint',?)",student,UUID.randomUUID(),activity);
-        var tables=List.of("app_account","student_identity","course","course_enrollment","course_introduction","grouping_activity","activity_participant","activity_group","activity_membership","grouping_command_receipt");
+        var tables=List.of("app_account","student_identity","course","course_enrollment","course_introduction","activity_participant","activity_group","activity_membership","grouping_command_receipt");
         var before=new HashMap<String,List<Map<String,Object>>>();for(String table:tables)before.put(table,db.queryForList("SELECT * FROM "+table));
+        var activityBefore=db.queryForList("SELECT id,course_id,instructions,deadline FROM grouping_activity");
         Flyway.configure().dataSource(source).defaultSchema(schema).schemas(schema).load().migrate();
         for(String table:tables)assertEquals(before.get(table),db.queryForList("SELECT * FROM "+table));
-        assertEquals(0,db.queryForObject("SELECT count(*) FROM application_attempt",Integer.class));assertEquals(8,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
+        assertEquals(activityBefore,db.queryForList("SELECT id,course_id,instructions,deadline FROM grouping_activity"));
+        for(var row:db.queryForList("SELECT finalized_at FROM grouping_activity"))assertNull(row.get("finalized_at"));
+        assertEquals(0,db.queryForObject("SELECT count(*) FROM application_attempt",Integer.class));assertEquals(9,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
     }
 }

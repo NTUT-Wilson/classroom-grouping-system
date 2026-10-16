@@ -206,15 +206,18 @@ class GroupJoiningIntegrationTest {
         db.update("INSERT INTO grouping_activity VALUES (?,?,'Instructions',clock_timestamp()+interval '1 hour')",activity,course);
         db.update("INSERT INTO activity_participant VALUES (?,?)",activity,student);db.update("INSERT INTO activity_group VALUES (?,?,1,2)",group,activity);
         db.update("INSERT INTO grouping_command_receipt VALUES (?,'CREATE_ACTIVITY',?,'preserved-fingerprint',?)",student,UUID.randomUUID(),activity);
-        var tables=List.of("app_account","student_identity","course","course_enrollment","course_introduction","grouping_activity","activity_participant","grouping_command_receipt");
+        var tables=List.of("app_account","student_identity","course","course_enrollment","course_introduction","activity_participant","grouping_command_receipt");
         var before=new HashMap<String,List<Map<String,Object>>>();for(String table:tables)before.put(table,db.queryForList("SELECT * FROM "+table));
         var layout=db.queryForList("SELECT id,activity_id,ordinal,capacity FROM activity_group");
+        var activityBefore=db.queryForList("SELECT id,course_id,instructions,deadline FROM grouping_activity");
         Flyway.configure().dataSource(source).defaultSchema(schema).schemas(schema).load().migrate();
         for(String table:tables)assertEquals(before.get(table),db.queryForList("SELECT * FROM "+table));
+        assertEquals(activityBefore,db.queryForList("SELECT id,course_id,instructions,deadline FROM grouping_activity"));
+        for(var row:db.queryForList("SELECT finalized_at FROM grouping_activity"))assertNull(row.get("finalized_at"));
         assertEquals(layout,db.queryForList("SELECT id,activity_id,ordinal,capacity FROM activity_group"));
         assertNull(db.queryForMap("SELECT * FROM activity_group").get("manager_account_id"));
         assertEquals(0,db.queryForObject("SELECT count(*) FROM activity_membership",Integer.class));
-        assertEquals(8,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
+        assertEquals(9,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
     }
 }
 

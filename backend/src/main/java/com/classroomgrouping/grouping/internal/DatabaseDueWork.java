@@ -17,7 +17,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/** Preparation commits separately from the future assignment/finalization transaction. */
+/** Immutable preparation and atomic assignment/finalization commit in separate transactions. */
 final class DatabaseDueWork implements DueWork {
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseDueWork.class);
     private static final int BATCH_SIZE = 64;
@@ -46,21 +46,26 @@ final class DatabaseDueWork implements DueWork {
             var candidates = jdbc.queryForList("""
                     SELECT a.id FROM grouping_activity a LEFT JOIN allocation_work w ON w.activity_id=a.id
                     WHERE a.deadline <= clock_timestamp() AND
-                      (w.activity_id IS NULL OR (w.state='RETRY' AND w.retry_at <= clock_timestamp()))
+                      a.finalized_at IS NULL AND
+                      (w.activity_id IS NULL OR w.state IN ('PREPARED','COMPLETE') OR (w.state='RETRY' AND w.retry_at <= clock_timestamp()))
                     ORDER BY a.deadline, a.id LIMIT ?
                     """, UUID.class, BATCH_SIZE);
             for (var activity : candidates) {
                 try {
                     boolean prepared = Boolean.TRUE.equals(transaction.execute(status -> prepare(activity)));
-                    if (prepared) observer.afterCommit(activity);
+                    if (prepared) {
+                        observer.afterCommit(activity);
+                        boolean completed = Boolean.TRUE.equals(transaction.execute(status -> assign(activity)));
+                        if (completed) observer.afterAssignmentCommit(activity);
+                    }
                 } catch (RuntimeException failure) {
                     try {
                         var recorded = transaction.execute(status -> recordFailure(activity, failure));
-                        if (recorded != null) LOG.warn("Deadline preparation failure recorded: classification={}, attempts={}",
+                        if (recorded != null) LOG.warn("Deadline allocation failure recorded: classification={}, attempts={}",
                                 recorded.classification(), recorded.attempts());
                     } catch (RuntimeException bookkeepingFailure) {
                         // Durable deadlines remain discoverable. Do not log SQL, requests, or student data.
-                        LOG.warn("Deadline preparation failure bookkeeping unavailable; durable work remains pending");
+                        LOG.warn("Deadline allocation failure bookkeeping unavailable; durable work remains pending");
                     }
                 }
             }
@@ -76,12 +81,19 @@ final class DatabaseDueWork implements DueWork {
     private boolean eligible(UUID activity) {
         return Boolean.TRUE.equals(jdbc.queryForObject("""
                 SELECT NOT EXISTS (SELECT 1 FROM allocation_work WHERE activity_id=? AND
-                    (state IN ('HALTED','PREPARED') OR retry_at > clock_timestamp()))
+                    (state='HALTED' OR retry_at > clock_timestamp()))
                 """, Boolean.class, activity));
     }
 
     private boolean prepare(UUID activity) {
         if (!lockDue(activity) || !eligible(activity)) return false;
+        if (isFinalized(activity)) { validateCompleted(activity); markComplete(activity); return false; }
+        require(!Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM allocation_work WHERE activity_id=? AND state='COMPLETE')", Boolean.class, activity)));
+        if (assignmentStage(activity)) {
+            require(hasPlan(activity));
+            validatePlan(activity, validateSnapshot(activity));
+            return true;
+        }
         jdbc.update("UPDATE application_attempt SET status='EXPIRED' WHERE activity_id=? AND status='PENDING'", activity);
         jdbc.update("UPDATE invitation_attempt SET status='EXPIRED' WHERE activity_id=? AND status='PENDING'", activity);
         var snapshot = validateSnapshot(activity);
@@ -109,6 +121,56 @@ final class DatabaseDueWork implements DueWork {
         return true;
     }
 
+    private boolean assignmentStage(UUID activity) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM allocation_work WHERE activity_id=? AND stage='ASSIGNMENT')", Boolean.class, activity));
+    }
+
+    private boolean isFinalized(UUID activity) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT finalized_at IS NOT NULL FROM grouping_activity WHERE id=?", Boolean.class, activity));
+    }
+
+    private boolean assign(UUID activity) {
+        if (!lockDue(activity) || !eligible(activity)) return false;
+        require(assignmentStage(activity) && hasPlan(activity));
+        var snapshot = validateSnapshot(activity);
+        validatePlan(activity, snapshot);
+        if (isFinalized(activity)) { validateCompleted(activity); markComplete(activity); return false; }
+        var placements = placements(activity);
+        for (var placement : placements.entrySet()) {
+            if (!snapshot.memberships().containsKey(placement.getKey())) {
+                jdbc.update("INSERT INTO activity_membership(activity_id,account_id,group_id) VALUES (?,?,?)",
+                        activity, placement.getKey(), placement.getValue());
+                observer.afterAssignment(activity);
+            }
+        }
+        validateCompleted(activity);
+        jdbc.update("UPDATE grouping_activity SET finalized_at=clock_timestamp() WHERE id=?", activity);
+        markComplete(activity);
+        observer.beforeAssignmentCommit(activity);
+        return true;
+    }
+
+    private void validateCompleted(UUID activity) {
+        require(hasPlan(activity));
+        var snapshot = validateSnapshot(activity);
+        validatePlan(activity, snapshot);
+        require(snapshot.memberships().keySet().equals(snapshot.participants()));
+        require(jdbc.queryForObject("SELECT count(*) FROM application_attempt WHERE activity_id=? AND status='PENDING'", Integer.class, activity) == 0);
+        require(jdbc.queryForObject("SELECT count(*) FROM invitation_attempt WHERE activity_id=? AND status='PENDING'", Integer.class, activity) == 0);
+    }
+
+    private Map<UUID, UUID> placements(UUID activity) {
+        var placements = new HashMap<UUID, UUID>();
+        jdbc.query("SELECT account_id,group_id FROM allocation_placement WHERE activity_id=?", rs -> {
+            require(placements.put(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class)) == null);
+        }, activity);
+        return placements;
+    }
+
+    private void markComplete(UUID activity) {
+        jdbc.update("UPDATE allocation_work SET state='COMPLETE',stage='ASSIGNMENT',retry_at=NULL,failure_class=NULL WHERE activity_id=?", activity);
+    }
+
     private boolean hasPlan(UUID activity) {
         return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM allocation_plan WHERE activity_id=?)", Boolean.class, activity));
     }
@@ -124,10 +186,16 @@ final class DatabaseDueWork implements DueWork {
         require(!groups.isEmpty() && groups.stream().mapToLong(Group::capacity).sum() == participants.size());
         var groupIds = groups.stream().map(Group::id).collect(java.util.stream.Collectors.toSet());
         require(participants.containsAll(memberships.keySet()) && groupIds.containsAll(memberships.values()));
+        var planned = hasPlan(activity) ? placements(activity) : Map.<UUID, UUID>of();
         for (var group : groups) {
             long used = memberships.values().stream().filter(group.id()::equals).count();
             require(used <= group.capacity());
-            require(group.manager() == null ? used == 0 : group.id().equals(memberships.get(group.manager())));
+            if (group.manager() == null) {
+                require(memberships.entrySet().stream().filter(e -> group.id().equals(e.getValue()))
+                        .allMatch(e -> group.id().equals(planned.get(e.getKey()))));
+            } else {
+                require(group.id().equals(memberships.get(group.manager())) && !planned.containsKey(group.manager()));
+            }
         }
         return new Snapshot(participants, groups, memberships);
     }
@@ -135,10 +203,7 @@ final class DatabaseDueWork implements DueWork {
     private void validatePlan(UUID activity, Snapshot snapshot) {
         var header = jdbc.queryForMap("SELECT state,placement_count FROM allocation_plan WHERE activity_id=?", activity);
         require("COMPLETE".equals(header.get("state")));
-        var placements = new HashMap<UUID, UUID>();
-        jdbc.query("SELECT account_id,group_id FROM allocation_placement WHERE activity_id=?", rs -> {
-            require(placements.put(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class)) == null);
-        }, activity);
+        var placements = placements(activity);
         require(((Number) header.get("placement_count")).intValue() == placements.size());
         require(snapshot.participants().containsAll(placements.keySet()));
         var combined = new HashMap<>(snapshot.memberships());
@@ -156,23 +221,27 @@ final class DatabaseDueWork implements DueWork {
 
     private void markPrepared(UUID activity) {
         jdbc.update("""
-                INSERT INTO allocation_work(activity_id,state) VALUES (?,'PREPARED')
-                ON CONFLICT(activity_id) DO UPDATE SET state='PREPARED',retry_at=NULL,failure_class=NULL
+                INSERT INTO allocation_work(activity_id,state,stage) VALUES (?,'PREPARED','ASSIGNMENT')
+                ON CONFLICT(activity_id) DO UPDATE SET state='PREPARED',stage='ASSIGNMENT',retry_at=NULL,failure_class=NULL
                 """, activity);
     }
 
     private FailureNotice recordFailure(UUID activity, RuntimeException failure) {
         if (!lockDue(activity)) return null;
         if (Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM allocation_work WHERE activity_id=? AND state='HALTED')", Boolean.class, activity))) return null;
-        // A commit acknowledgement can fail after PostgreSQL committed the entire plan.
-        // Reacquire its lock in this independent transaction before classifying a failure.
-        if (hasPlan(activity)) {
-            try {
+        // Reconcile an uncertain final commit only against complete authoritative state.
+        // A saved plan alone must never erase assignment retry backoff.
+        try {
+            if (isFinalized(activity)) { validateCompleted(activity); markComplete(activity); return null; }
+            if (assignmentStage(activity)) {
+                require(hasPlan(activity));
+                validatePlan(activity, validateSnapshot(activity));
+            } else if (hasPlan(activity)) {
                 validatePlan(activity, validateSnapshot(activity));
                 markPrepared(activity);
                 return null;
-            } catch (IntegrityFault invalidPlan) { failure = invalidPlan; }
-        }
+            }
+        } catch (IntegrityFault invalidPlan) { failure = invalidPlan; }
         boolean integrity = failure instanceof IntegrityFault || failure instanceof DataIntegrityViolationException;
         var attempts = jdbc.queryForList("SELECT attempts FROM allocation_work WHERE activity_id=?", Integer.class, activity);
         int count = attempts.isEmpty() ? 1 : (int) Math.min(Integer.MAX_VALUE, (long) attempts.getFirst() + 1);
@@ -194,5 +263,8 @@ final class DatabaseDueWork implements DueWork {
     interface PreparationObserver {
         default void beforeCommit(UUID activity) {}
         default void afterCommit(UUID activity) {}
+        default void afterAssignment(UUID activity) {}
+        default void beforeAssignmentCommit(UUID activity) {}
+        default void afterAssignmentCommit(UUID activity) {}
     }
 }

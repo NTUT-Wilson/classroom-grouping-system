@@ -29,3 +29,9 @@ Historical batch evidence remains in [Slices 2–7](slices-2-7.md). Local succes
 ## Slice 8 checkpoint complete
 
 On2026-10-16: frontend136/build; focused13 PostgreSQL preparation tests; corrected full Maven134 tests,zero failures/errors/skips,5:24; all22 packaged-jar Chromium workflows,zero retries,2.5min; production scheduler tick saved a complete mapping without assignments; three refreshes preserved domain digest and concealed memberships; fresh independent `/root/review_slice8` found no actionable defect. See [Slice8](slice-8.md) for retained initial failures and evidence. Whole-batch image/prototype and hosted gates remain separate. Source freeze/review matched this checkpoint; Slice9 is next.
+
+## Slice 9 checkpoint complete
+
+Slice9 adds forward V9, durable assignment stages and atomic saved-plan completion without manager appointment. Current frontend136/build; focused24 recovery tests; final full Maven146 tests,0 failures/errors/skips,6:00,16:29:26+08;4 selected packaged-jar cutoff workflows,0 retries,1.3min; actual production tick complete participant coverage, managerless system-only groups and read-only refresh digest all passed. These4 selected workflows are not the complete browser suite. Explicit V8 PREPARED-plan upgrade preservation is included in the25 allocation tests. See [Slice9](slice-9.md).
+
+Retained failures: sandbox Docker discovery before assertions; first full145 run failed3 old SELECT* activity-row comparisons due solely to new finalized_at=null. Original fields remain exactly compared and new null field separately asserted. Fresh independent `/root/review_slice9` and a test-only follow-up found no actionable defect/weakening; no reviewer tests/browser were claimed. Lead owns execution evidence. `/root/implement_slice9` requestedgpt-6.1-sol/medium/forknone owned worker,V9,recovery/migration tests; no frontend edits. Slice10 follows after this completed gate.
