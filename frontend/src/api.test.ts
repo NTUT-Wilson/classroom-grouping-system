@@ -222,3 +222,13 @@ test('lost invitation response never replays and explicit later choice gets fres
   await decideInvitation('c/id', 'i/id', { commandKey: 'second', decision: 'REJECT' })
   expect(fetchMock.mock.calls[3]).toEqual(['/api/courses/c%2Fid/invitations/i%2Fid/decision', { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': 'fresh', 'Content-Type': 'application/json' }, body: JSON.stringify({ commandKey: 'second', decision: 'REJECT' }) }])
 })
+
+test('results reads select a role-specific endpoint and disable caching', async () => {
+  const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ activityId: null, status: 'ABSENT', groups: [] }), { status: 200 })))
+  vi.stubGlobal('fetch', fetchMock)
+  const api = await import('./api')
+  await api.getResults('course/id', 'TEACHER')
+  expect(fetch).toHaveBeenLastCalledWith('/api/courses/course%2Fid/results/roster', { credentials: 'same-origin', cache: 'no-store' })
+  await api.getResults('course/id', 'STUDENT')
+  expect(fetch).toHaveBeenLastCalledWith('/api/courses/course%2Fid/results/my-group', { credentials: 'same-origin', cache: 'no-store' })
+})

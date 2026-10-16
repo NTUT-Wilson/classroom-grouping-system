@@ -26,7 +26,7 @@ class DatabaseGroupingApplications implements GroupingApplications {
             CourseIntroductions introductions, GroupJoiningWriter joining) {
         this.jdbc=jdbc;this.courses=courses;this.identities=identities;this.introductions=introductions;this.joining=joining;
     }
-    private record Activity(UUID id, Instant deadline) {}
+    private record Activity(UUID id, Instant deadline, boolean finalized) {}
     private record Attempt(UUID id, UUID groupId, int ordinal, UUID applicant, UUID manager, String status, String reason, Instant createdAt) {}
     private record Cursor(Instant createdAt, UUID id) {}
     @Transactional(readOnly=true,isolation=Isolation.REPEATABLE_READ)
@@ -91,7 +91,7 @@ class DatabaseGroupingApplications implements GroupingApplications {
     private UUID student(Principal principal,UUID courseId){var access=courses.read(principal,courseId);if(access.teacher())throw new CourseNotAccessible();return access.actorId();}
     private void participant(UUID activity,UUID actor){if(!Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM activity_participant WHERE activity_id=? AND account_id=?)",Boolean.class,activity,actor)))throw new CourseNotAccessible();}
     private void ungrouped(UUID activity,UUID actor){if(!jdbc.queryForList("SELECT 1 FROM activity_membership WHERE activity_id=? AND account_id=?",activity,actor).isEmpty())throw new GroupingConflict("ALREADY_GROUPED");}
-    private Activity activity(UUID course,boolean lock){var rows=jdbc.query("SELECT id,deadline FROM grouping_activity WHERE course_id=?"+(lock?" FOR UPDATE":""),(rs,n)->new Activity(rs.getObject(1,UUID.class),rs.getTimestamp(2).toInstant()),course);return rows.isEmpty()?null:rows.getFirst();}
+    private Activity activity(UUID course,boolean lock){var rows=jdbc.query("SELECT id,deadline,finalized_at IS NOT NULL AS finalized FROM grouping_activity WHERE course_id=?"+(lock?" FOR UPDATE":""),(rs,n)->new Activity(rs.getObject(1,UUID.class),rs.getTimestamp(2).toInstant(),rs.getBoolean(3)),course);return rows.isEmpty()?null:rows.getFirst();}
     private boolean replay(UUID actor,String command,UUID key,String fingerprint,UUID activity){
         if(key==null)throw new GroupingValidationException("commandKey");
         int inserted=jdbc.update("INSERT INTO grouping_command_receipt(actor_id,command,command_key,fingerprint,activity_id) VALUES (?,?,?,?,?) ON CONFLICT DO NOTHING",actor,command,key,fingerprint,activity);
@@ -115,7 +115,7 @@ class DatabaseGroupingApplications implements GroupingApplications {
         boolean open=jdbc.queryForObject("SELECT clock_timestamp()",Timestamp.class).toInstant().isBefore(activity.deadline());
         var items=rows.stream().map(a->new ApplicationAttempt(a.id(),a.groupId(),"Group "+a.ordinal(),profile.apply(a.applicant()),profile.apply(a.manager()),!open&&a.status().equals("PENDING")?"EXPIRED":a.status(),a.reason(),a.createdAt())).toList();
         String next=more?encode(actor,course,rows.getLast()):null;
-        return new ApplicationPage(activity.id(),open?"OPEN":"FINALIZING",items,next);
+        return new ApplicationPage(activity.id(),open?"OPEN":activity.finalized()?"FINALIZED":"FINALIZING",items,next);
     }
     private String encode(UUID actor,UUID course,Attempt a){return Base64.getUrlEncoder().withoutPadding().encodeToString((actor+"|"+course+"|"+a.createdAt()+"|"+a.id()).getBytes(StandardCharsets.UTF_8));}
     private Cursor decode(String cursor,UUID actor,UUID course){

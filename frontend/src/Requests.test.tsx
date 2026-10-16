@@ -119,3 +119,29 @@ test('double confirmation creates one command and pending history is not itself 
   vi.mocked(api.getApplications).mockResolvedValue({ ...page, items: [{ ...attempt, status: 'REJECTED' }] }); await act(async () => { finish({ ...page, items: [{ ...attempt, status: 'REJECTED' }] }) })
   await screen.findByText('REJECTED')
 })
+
+test('finalized discovery is not relabeled finalizing by stale history and cannot expose actions', async () => {
+  vi.mocked(api.getGrouping).mockResolvedValue({ ...discovery, status: 'FINALIZED', ownGroupId: null, groups: [] })
+  vi.mocked(api.getApplications).mockResolvedValue({ ...page, status: 'FINALIZING' })
+  mount()
+  expect(await screen.findByRole('heading', { name: 'Grouping is complete' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'View my group status' })).toBeInTheDocument()
+})
+
+test.each(['counterpart history', 'command response'])('post-command finalized %s wins over older own history and discovery', async source => {
+  vi.mocked(api.decideApplication).mockImplementation(async () => {
+    const history: api.ApplicationPage = { ...page, status: 'FINALIZING', items: [{ ...attempt, status: 'ACCEPTED' }] }
+    vi.mocked(api.getApplications).mockResolvedValue(history)
+    vi.mocked(api.getGrouping).mockResolvedValue({ ...discovery, status: 'FINALIZING', ownGroupId: null, groups: [] })
+    vi.mocked(api.getInvitations).mockResolvedValue({ ...page, status: source === 'counterpart history' ? 'FINALIZED' : 'FINALIZING', items: [] })
+    return { ...history, status: source === 'command response' ? 'FINALIZED' : 'OPEN' }
+  })
+  const user = userEvent.setup(); mount(); await respond(user)
+  expect(await screen.findByRole('heading', { name: 'Grouping is complete' })).toBeInTheDocument()
+  expect(screen.getByText('ACCEPTED')).toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'Grouping is finalizing' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Approve|Reject/ })).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'View my group status' })).toBeInTheDocument()
+  expect(api.decideApplication).toHaveBeenCalledTimes(1)
+})

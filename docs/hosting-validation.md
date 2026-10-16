@@ -47,3 +47,5 @@ Docker engine 29.7.2 is currently reachable outside the sandbox. The older socke
 No hosted checklist item or private GitHub CI gate is satisfied by this work. Account access, no-cost allowance, hosted cold starts, external scheduling, monitoring, recovery and combined quotas remain unverified; backup arrangements and final resource tuning remain deferred. No cloud resource, provider configuration, remote CI run, paid execution or deployment was performed.
 
 Local Slice9 now verifies real saved-plan allocation and atomic finalization, including actual disposable PostgreSQL outage/restart and startup recovery. [Slice9](slice-9.md) records current full146-test and selected browser evidence. This replaces only the earlier local placeholder limitation; no hosted checklist item, unattended external service, backup restore, remote CI or quota gate is satisfied.
+
+Local Slice10 adds complete authorized results: frontend161/build, full155-test backend and23 packaged-jar browser workflows passed; see [Slice10](slice-10.md). These local results do not satisfy hosted/remote CI gates, and current batch image/export acceptance remains pending.

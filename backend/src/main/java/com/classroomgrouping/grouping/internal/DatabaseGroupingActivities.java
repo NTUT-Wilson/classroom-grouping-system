@@ -32,7 +32,7 @@ class DatabaseGroupingActivities implements GroupingActivities {
     }
     private Workspace project(UUID courseId, ActivityCourseAccess.Access access) {
         var activities = jdbc.query("""
-                SELECT id, instructions, deadline, CASE WHEN deadline > clock_timestamp() THEN 'OPEN' ELSE 'FINALIZING' END AS status
+                SELECT id, instructions, deadline, CASE WHEN deadline > clock_timestamp() THEN 'OPEN' WHEN finalized_at IS NOT NULL THEN 'FINALIZED' ELSE 'FINALIZING' END AS status
                 FROM grouping_activity WHERE course_id=?
                 """, (rs, row) -> new Activity(rs.getObject("id", UUID.class), courseId, rs.getString("instructions"),
                 rs.getTimestamp("deadline").toInstant(), rs.getString("status"), List.of()), courseId);

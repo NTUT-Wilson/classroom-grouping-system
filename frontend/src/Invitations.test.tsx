@@ -75,3 +75,28 @@ test('double click and late completion cannot affect another course', async () =
   const user = userEvent.setup(); const view = mount(); await user.click(await screen.findByRole('button', { name: 'Accept invitation' })); await user.dblClick(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirm acceptance' })); expect(api.decideInvitation).toHaveBeenCalledTimes(1)
   vi.mocked(api.getInvitations).mockResolvedValue({ ...page, status: 'ABSENT', items: [] }); view.rerender(<Invitations course={{ ...course, id: 'next' }} accountId="student" expired={vi.fn()} />); await screen.findByText('No grouping activity yet'); await act(async () => finish(page)); expect(screen.queryByRole('article')).not.toBeInTheDocument()
 })
+
+test('finalized discovery keeps completed result navigation despite older finalizing invitation history', async () => {
+  vi.mocked(api.getGrouping).mockResolvedValue({ ...groups, status: 'FINALIZED', ownGroupId: null, groups: [] })
+  vi.mocked(api.getInvitations).mockResolvedValue({ ...page, status: 'FINALIZING' })
+  mount()
+  expect(await screen.findByRole('heading', { name: 'Grouping is complete' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Accept invitation' })).not.toBeInTheDocument()
+})
+
+test.each(['counterpart history', 'command response'])('post-command finalized %s wins over older own history and discovery', async source => {
+  vi.mocked(api.decideInvitation).mockImplementation(async () => {
+    const history: api.InvitationPage = { ...page, status: 'FINALIZING', items: [{ ...invitation, status: 'ACCEPTED' }] }
+    vi.mocked(api.getInvitations).mockResolvedValue(history)
+    vi.mocked(api.getGrouping).mockResolvedValue({ ...groups, status: 'FINALIZING', ownGroupId: null, groups: [] })
+    vi.mocked(api.getApplications).mockResolvedValue({ ...page, status: source === 'counterpart history' ? 'FINALIZED' : 'FINALIZING', items: [] })
+    return { ...history, status: source === 'command response' ? 'FINALIZED' : 'OPEN' }
+  })
+  const user = userEvent.setup(); mount(); await respond(user)
+  expect(await screen.findByRole('heading', { name: 'Grouping is complete' })).toBeInTheDocument()
+  expect(screen.getByText('ACCEPTED')).toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'Grouping is finalizing' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Accept invitation|Reject invitation|^Invite / })).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'View my group status' })).toBeInTheDocument()
+  expect(api.decideInvitation).toHaveBeenCalledTimes(1)
+})

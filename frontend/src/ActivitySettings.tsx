@@ -76,6 +76,7 @@ export function ActivitySettings({ initial, courseId, role, expired }: { initial
     {issue && <p role="alert" className="notice">{issue}</p>}{message && <p role="status" className="success-notice">{message}</p>}
     {!activity ? <section className="state-panel"><h2>Activity unavailable</h2><p>Check current activity before continuing.</p></section> : <>
       <ActivityDetails activity={activity} />
+      <p className="results-footnote"><a href={`#/courses/${courseId}/${role === 'TEACHER' ? 'results' : 'groups'}`}>{role === 'TEACHER' ? 'View final roster status' : 'View my group'}</a></p>
       {role === 'TEACHER' && !editor && <div className="editor-actions"><button className="secondary-button" disabled={busy || blocked} onClick={() => begin('instructions')}>Edit instructions</button>{activity.status === 'OPEN' && <button className="secondary-button" disabled={busy || blocked} onClick={() => begin('deadline')}>Extend deadline</button>}</div>}
     </>}
     {role === 'TEACHER' && editor && <form className="activity-panel activity-form settings-editor" noValidate onSubmit={event => { event.preventDefault(); void save() }}>

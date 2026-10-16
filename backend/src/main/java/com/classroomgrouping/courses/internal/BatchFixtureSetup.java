@@ -42,6 +42,8 @@ class BatchFixtureSetup {
                     new SeedCourse("BATCH-606", "Batch Applications Classroom", List.of("batch-teacher"), students),
                     new SeedCourse("BATCH-607", "Batch Applications Cutoff Classroom", List.of("batch-teacher"), students.subList(0, 4)),
                     new SeedCourse("BATCH-707", "Batch Invitations Classroom", List.of("batch-teacher"), students),
+                    new SeedCourse("BATCH-1001", "Batch Results Classroom", List.of("batch-teacher"), students),
+                    new SeedCourse("BATCH-1002", "Batch Results Cutoff Classroom", List.of("batch-teacher"), students.subList(0, 4)),
                     new SeedCourse("BATCH-708", "Batch Invitations Cutoff Classroom", List.of("batch-teacher"), students.subList(0, 4)))));
         };
     }

@@ -1,3 +1,4 @@
+import { Results } from './Results'
 import { useEffect, useRef, useState } from 'react'
 import { ApiError, applyToGroup, getApplications, getGrouping, getInvitations, joinEmptyGroup } from './api'
 import type { Classmate, Course, DiscoveryGroup, GroupDiscovery } from './api'
@@ -42,10 +43,13 @@ export function Groups({ course, accountId, expired }: { course: Course; account
     setState('loading'); setData(null); setSelected(null)
     if (!preserveProblem) setProblem('')
     try {
-      const [current, history, invitations] = await Promise.all([getGrouping(course.id), getApplications(course.id), getInvitations(course.id)])
+      const current = await getGrouping(course.id)
+      if (request !== generation.current) return
+      if (current.status !== 'OPEN') { setPendingGroups([]); setData(current); setState('ready'); setUncertain(false); return }
+      const [history, invitations] = await Promise.all([getApplications(course.id), getInvitations(course.id)])
       if (request !== generation.current) return
       setPendingGroups(history.items.filter(item => item.status === 'PENDING' && item.applicant.accountId === accountId).map(item => item.groupId))
-      setData({ ...current, status: history.status === 'FINALIZING' || invitations.status === 'FINALIZING' ? 'FINALIZING' : current.status }); setState('ready'); setUncertain(false)
+      setData({ ...current, status: history.status === 'FINALIZED' || invitations.status === 'FINALIZED' ? 'FINALIZED' : history.status === 'FINALIZING' || invitations.status === 'FINALIZING' ? 'FINALIZING' : current.status }); setState('ready'); setUncertain(false)
     } catch (cause) {
       if (request !== generation.current || deny(cause)) return
       setState('error'); setProblem(previous => `${preserveProblem && previous ? previous + '. ' : ''}Current groups could not be checked. Please retry.`)
@@ -82,6 +86,7 @@ export function Groups({ course, accountId, expired }: { course: Course; account
       if (attempt === operation.current) { busy.current = false; setSaving(false); heading.current?.focus() }
     }
   }
+  if (data?.status === 'FINALIZED' && state === 'ready') return <Results course={course} role="STUDENT" expired={expired} />
   const own = data?.status === 'OPEN' ? data.groups.find(group => group.id === data.ownGroupId) : undefined
   return <section className="groups-workspace" aria-label="Groups"><div className="activity-toolbar"><div><span className="eyebrow">FIND YOUR GROUP</span><h2 tabIndex={-1} ref={heading}>Groups</h2></div><button className="secondary-button" disabled={saving || state === 'loading'} onClick={() => void load()}>Refresh groups</button></div>
     {problem && <p role="alert" className="notice">{problem}</p>}{message && <p role="status" className="success-notice">{message} {application && <a href={`#/courses/${course.id}/requests`}>View requests</a>}</p>}

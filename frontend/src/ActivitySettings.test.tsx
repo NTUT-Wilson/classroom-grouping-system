@@ -73,3 +73,10 @@ test('unmounted editor ignores a stale write result', async () => {
   const user = userEvent.setup(); const { unmount } = view(); await user.click(screen.getByRole('button', { name: 'Edit instructions' })); await user.click(screen.getByRole('button', { name: 'Save instructions' })); unmount(); finish({ activity, enrolledCount: null })
   expect(screen.queryByText('Instructions saved.')).not.toBeInTheDocument()
 })
+
+test('finalized instructions stay editable and final roster has a direct link', async () => {
+  view({ ...activity, status: 'FINALIZED' })
+  expect(screen.getByRole('button', { name: 'Edit instructions' })).toBeEnabled()
+  expect(screen.queryByRole('button', { name: 'Extend deadline' })).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'View final roster status' })).toHaveAttribute('href', '#/courses/c/results')
+})

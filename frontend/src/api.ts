@@ -1,13 +1,13 @@
 export type Session = { accountId: string; username: string; role: 'TEACHER' | 'STUDENT' }
 export type Course = { id: string; code: string; name: string }
 export type Classmate = { accountId: string; studentId: string; studentName: string; aboutMe: string }
-export type Activity = { id: string; courseId: string; instructions: string; deadline: string; status: 'OPEN' | 'FINALIZING'; groups: { id: string; ordinal: number; name: string; capacity: number }[] }
+export type Activity = { id: string; courseId: string; instructions: string; deadline: string; status: 'OPEN' | 'FINALIZING' | 'FINALIZED'; groups: { id: string; ordinal: number; name: string; capacity: number }[] }
 export type ActivityWorkspace = { activity: Activity | null; enrolledCount: number | null }
 export type CreateActivity = { commandKey: string; instructions: string; deadline: string; capacities: number[] }
 export type DiscoveryGroup = { id: string; name: string; capacity: number; availablePlaces: number; manager: Classmate | null; members: Classmate[] }
-export type GroupDiscovery = { activityId: string | null; status: 'ABSENT' | 'OPEN' | 'FINALIZING'; ownGroupId: string | null; groups: DiscoveryGroup[] }
+export type GroupDiscovery = { activityId: string | null; status: 'ABSENT' | 'OPEN' | 'FINALIZING' | 'FINALIZED'; ownGroupId: string | null; groups: DiscoveryGroup[] }
 export type ApplicationAttempt = { id: string; groupId: string; groupName: string; applicant: Classmate; manager: Classmate; status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELED' | 'EXPIRED'; reason: string | null; createdAt: string }
-export type ApplicationPage = { activityId: string | null; status: 'ABSENT' | 'OPEN' | 'FINALIZING'; items: ApplicationAttempt[]; nextCursor: string | null }
+export type ApplicationPage = { activityId: string | null; status: 'ABSENT' | 'OPEN' | 'FINALIZING' | 'FINALIZED'; items: ApplicationAttempt[]; nextCursor: string | null }
 export type InvitationAttempt = Omit<ApplicationAttempt, 'applicant' | 'manager'> & { sender: Classmate; recipient: Classmate }
 export type InvitationPage = Omit<ApplicationPage, 'items'> & { items: InvitationAttempt[] }
 export function getInvitations(id: string, cursor?: string): Promise<InvitationPage> {
@@ -151,3 +151,8 @@ export function signIn(username: string, password: string): Promise<void> {
   return mutate('/api/auth/login', new URLSearchParams({ username, password }))
 }
 export function signOut(): Promise<void> { return mutate('/api/auth/logout') }
+
+export type FinalResults = { activityId: string | null; status: 'ABSENT' | 'OPEN' | 'FINALIZING' | 'FINALIZED'; groups: { id: string; ordinal: number; name: string; capacity: number; managerAccountId: string | null; members: { accountId: string; studentId: string; studentName: string; aboutMe?: string }[] }[] }
+export function getResults(id: string, role: 'TEACHER' | 'STUDENT'): Promise<FinalResults> {
+  return readCourse(`/api/courses/${encodeURIComponent(id)}/results/${role === 'TEACHER' ? 'roster' : 'my-group'}`)
+}

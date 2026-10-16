@@ -173,3 +173,14 @@ body { margin:0; }
 .load-older { margin-top:20px; }
 @media(max-width:700px) { .request-parties { grid-template-columns:minmax(0,1fr); gap:16px; } .request-card { padding:22px; } .course-tabs { gap:20px; flex-wrap:wrap; } }
 .request-views { display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap; } .invitation-candidates { margin:24px 0 32px; } .person-card button { max-width:100%; overflow-wrap:anywhere; white-space:normal; }
+
+.results-workspace { margin-top: 28px; }
+.results-intro, .results-footnote { color: var(--muted, #657067); line-height: 1.7; }
+.results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 20px; }
+.own-result { max-width: 780px; }
+.final-group { min-width: 0; }
+.final-group-title { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.final-group-title h3 { overflow-wrap: anywhere; }
+.group-number { display: grid; place-items: center; width: 42px; height: 42px; flex-shrink: 0; background: #edf2e9; color: #365742; border-radius: 12px; font-weight: 700; }
+.final-group .group-member > div { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .results-workspace .activity-toolbar { align-items: flex-start; gap: 16px; flex-wrap: wrap; } .final-group .group-card-heading { align-items: flex-start; gap: 12px; flex-wrap: wrap; } }

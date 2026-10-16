@@ -87,10 +87,10 @@ class DatabaseGroupingMemberships implements GroupingMemberships {
                 "SELECT EXISTS (SELECT 1 FROM activity_participant WHERE activity_id=? AND account_id=?)",
                 Boolean.class, activityId, actorId))) throw new CourseNotAccessible();
     }
-    private record Activity(UUID id, Instant deadline) {}
+    private record Activity(UUID id, Instant deadline, boolean finalized) {}
     private List<Activity> activity(UUID courseId, boolean lock) {
-        return jdbc.query("SELECT id,deadline FROM grouping_activity WHERE course_id=?" + (lock ? " FOR UPDATE" : ""),
-                (rs, row) -> new Activity(rs.getObject("id", UUID.class), rs.getTimestamp("deadline").toInstant()), courseId);
+        return jdbc.query("SELECT id,deadline,finalized_at IS NOT NULL AS finalized FROM grouping_activity WHERE course_id=?" + (lock ? " FOR UPDATE" : ""),
+                (rs, row) -> new Activity(rs.getObject("id", UUID.class), rs.getTimestamp("deadline").toInstant(), rs.getBoolean("finalized")), courseId);
     }
     private boolean open(Activity activity) {
         return jdbc.queryForObject("SELECT clock_timestamp()", Timestamp.class).toInstant().isBefore(activity.deadline());
@@ -98,7 +98,7 @@ class DatabaseGroupingMemberships implements GroupingMemberships {
     private void requireOpen(Activity activity) {
         if (!open(activity)) throw new GroupingConflict("ACTIVITY_CLOSED");
     }
-    private Discovery closed(Activity activity) { return new Discovery(activity.id(), "FINALIZING", null, List.of()); }
+    private Discovery closed(Activity activity) { return new Discovery(activity.id(), activity.finalized() ? "FINALIZED" : "FINALIZING", null, List.of()); }
     private record Membership(UUID accountId, UUID groupId) {}
     private Discovery project(UUID courseId, Activity activity, UUID actorId) {
         if (!open(activity)) return closed(activity);
