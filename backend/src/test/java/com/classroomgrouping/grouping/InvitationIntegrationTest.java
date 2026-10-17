@@ -196,10 +196,13 @@ class InvitationIntegrationTest {
         db.update("INSERT INTO grouping_command_receipt VALUES (?,'JOIN_EMPTY_GROUP',?,'preserved-fingerprint',?)",student,UUID.randomUUID(),activity);
         UUID recipient=UUID.randomUUID();db.update("INSERT INTO app_account VALUES (?,'preserved-inv-recipient','hash','STUDENT')",recipient);db.update("INSERT INTO student_identity(account_id,student_id,student_name) VALUES (?,'000Recipient','Recipient')",recipient);db.update("INSERT INTO course_enrollment VALUES (?,?)",course,recipient);db.update("INSERT INTO activity_participant VALUES (?,?)",activity,recipient);
         UUID rejected=UUID.randomUUID();db.update("INSERT INTO application_attempt(id,activity_id,group_id,applicant_account_id,manager_account_id,status) VALUES (?,?,?,?,?,'REJECTED')",rejected,activity,group,recipient,student);db.update("INSERT INTO application_attempt(id,activity_id,group_id,applicant_account_id,manager_account_id,status) VALUES (?,?,?,?,?,'PENDING')",UUID.randomUUID(),activity,group,recipient,student);
-        var tables=List.of("application_attempt","app_account","student_identity","course","course_enrollment","course_introduction","grouping_activity","activity_participant","activity_group","activity_membership","grouping_command_receipt");
+        var tables=List.of("application_attempt","app_account","student_identity","course","course_enrollment","course_introduction","activity_participant","activity_group","activity_membership","grouping_command_receipt");
         var before=new HashMap<String,List<Map<String,Object>>>();for(String table:tables)before.put(table,db.queryForList("SELECT * FROM "+table));
+        var activityBefore=db.queryForList("SELECT id,course_id,instructions,deadline FROM grouping_activity");
         Flyway.configure().dataSource(source).defaultSchema(schema).schemas(schema).load().migrate();
         for(String table:tables)assertEquals(before.get(table),db.queryForList("SELECT * FROM "+table));
-        assertEquals(0,db.queryForObject("SELECT count(*) FROM invitation_attempt",Integer.class));assertEquals(7,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
+        assertEquals(activityBefore,db.queryForList("SELECT id,course_id,instructions,deadline FROM grouping_activity"));
+        for(var row:db.queryForList("SELECT finalized_at FROM grouping_activity"))assertNull(row.get("finalized_at"));
+        assertEquals(0,db.queryForObject("SELECT count(*) FROM invitation_attempt",Integer.class));assertEquals(9,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
     }
 }

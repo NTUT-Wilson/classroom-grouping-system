@@ -2,7 +2,7 @@
 
 Local implementation of the approved V1 modular monolith. React + Vite + TypeScript, Java 25 / Spring Boot 4.1.1, PostgreSQL, Flyway, and Spring Security with JDBC-backed sessions.
 
-Slice 1 adds provisioned teacher/student course lists and authorized course workspaces to the existing authentication. [Slice 2](docs/slice-2.md) connects profiles/About me; [Slice 3](docs/slice-3.md) adds activity creation; [Slice 4](docs/slice-4.md) adds instruction edits, deadline extensions and safe status reads. [Slice 5](docs/slice-5.md) adds student discovery and deliberate empty-group joining. [Slice 6](docs/slice-6.md) adds private applications, manager decisions and retained history. [Slice 7](docs/slice-7.md) adds invitations and combined request cleanup. Allocation, final results, exports, and administration are **not implemented**. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), [Slice 1 evidence](docs/slice-1.md), and [foundation verification record](docs/foundation.md).
+Slice 1 adds provisioned teacher/student course lists and authorized course workspaces to the existing authentication. [Slice 2](docs/slice-2.md) connects profiles/About me; [Slice 3](docs/slice-3.md) adds activity creation; [Slice 4](docs/slice-4.md) adds instruction edits, deadline extensions and safe status reads. [Slice 5](docs/slice-5.md) adds student discovery and deliberate empty-group joining. [Slice 6](docs/slice-6.md) adds private applications, manager decisions and retained history. [Slice 7](docs/slice-7.md) adds invitations and combined request cleanup. [Slice8](docs/slice-8.md) adds durable deadline preparation and saved plans. [Slice9](docs/slice-9.md) adds atomic assignment/finalization and preserved-plan recovery. [Slice10](docs/slice-10.md) adds authorized finalized teacher rosters and student own-group results. [Slice11](docs/slice-11.md) adds safe teacher-only finalized CSV export; administration is outside this V1 scope. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), [Slice 1 evidence](docs/slice-1.md), and [foundation verification record](docs/foundation.md).
 
 ## Prerequisites
 
@@ -75,7 +75,7 @@ Students can open the course's Classmates tab (`#/courses/<course-UUID>/classmat
 
 ### Isolated batch browser fixtures
 
-`APP_BATCH_FIXTURE_ENABLED=true` (or `--app.batch-fixture.enabled=true`) separately opts into synthetic BATCH courses for isolated acceptance workflows. Supply `BATCH_FIXTURE_PASSWORD` server-side (12+ characters, at most 72 UTF-8 bytes). Accounts are `batch-teacher` and `batch-student-1` through `batch-student-8`. BATCH-101/505/606/707 have eight students; BATCH-202/404/405/506 have the first two; BATCH-607/708 have the first four; BATCH-303 has no students. Setup is additive and idempotent, preserves existing identities/passwords/history, and creates no activities. Use a disposable local database for acceptance journeys and disable the flag after setup. The original DEMO courses remain separate.
+`APP_BATCH_FIXTURE_ENABLED=true` (or `--app.batch-fixture.enabled=true`) separately opts into synthetic BATCH courses for isolated acceptance workflows. Supply `BATCH_FIXTURE_PASSWORD` server-side (12+ characters, at most 72 UTF-8 bytes). Accounts are `batch-teacher` and `batch-student-1` through `batch-student-8`. BATCH-101/505/606/707/1001 have eight students; BATCH-202/404/405/506 have the first two; BATCH-607/708/1002 have the first four; BATCH-303 has no students. Setup is additive and idempotent, preserves existing identities/passwords/history, and creates no activities. Use a disposable local database for acceptance journeys and disable the flag after setup. The original DEMO courses remain separate.
 
 For frontend hot reload, use a second terminal:
 
@@ -96,9 +96,9 @@ cd ../backend
 .\mvnw.cmd verify
 ```
 
-Backend verification requires Docker and uses isolated, automatically cleaned PostgreSQL Testcontainers; it does not use or reset your development database. Tests cover fresh/upgrade migrations, provisioning rollback/repetition/concurrency, role/course authorization, real JDBC sessions, CSRF, expiry/logout/restart behavior, module boundaries, scheduler authorization, and a **test-only** durable deadline probe. The probe does not establish allocation correctness.
+Backend verification requires Docker and uses isolated, automatically cleaned PostgreSQL Testcontainers; it does not use or reset your development database. Tests cover fresh/upgrade migrations, provisioning rollback/repetition/concurrency, role/course authorization, real JDBC sessions, CSRF, expiry/logout/restart behavior, module boundaries, scheduler authorization, and a **test-only** durable deadline probe. The probe does not establish allocation correctness. Separate production tests cover immutable saved plans, database-clock races, capped retries/integrity halt, actual PostgreSQL outage/startup recovery, atomic completion, complete authorized result snapshots and safe exact CSV output.
 
-With the built backend running against a fresh disposable database, all three opt-in setup flags enabled (`APP_DEMO_ENABLED`, `APP_ROSTER_ENABLED`, `APP_BATCH_FIXTURE_ENABLED`), and `DEMO_USERNAME`, `DEMO_PASSWORD`, `ROSTER_TEACHER_PASSWORD`, `ROSTER_STUDENT_PASSWORD`, and `BATCH_FIXTURE_PASSWORD` set in your terminal:
+With the built backend running against a fresh disposable database, all three opt-in setup flags enabled (`APP_DEMO_ENABLED`, `APP_ROSTER_ENABLED`, `APP_BATCH_FIXTURE_ENABLED`), and `DEMO_USERNAME`, `DEMO_PASSWORD`, `ROSTER_TEACHER_PASSWORD`, `ROSTER_STUDENT_PASSWORD`, and `BATCH_FIXTURE_PASSWORD` set in your terminal, plus the same `SCHEDULER_SECRET` supplied to the backend and Node test process:
 
 ```powershell
 cd frontend
@@ -108,7 +108,7 @@ npm run test:e2e -- --workers=1
 
 The single-worker command runs every test while keeping multiple authenticated actors inside each journey. It fits the verified 8 GB local host; database concurrency uses coordinated independent PostgreSQL connections.
 
-`E2E_BASE_URL` can override the default `http://127.0.0.1:8080`. Browser tests require a separate identity-free Foundation account plus the documented synthetic roster. They exercise teacher/student access, profiles, creation, settings, joining, private requests, actual cutoff, keyboard/mobile layouts, deep links and lost committed responses without replay. Creation journeys require a fresh disposable database for each complete run; retain prior history rather than resetting activities. Use separate fresh databases for jar and image runs. Read-failure tests inject transport failures around real authenticated sessions. They do not silently skip when credentials or services are missing. Screenshot artifacts are in ignored `frontend/test-results/`.
+`E2E_BASE_URL` can override the default `http://127.0.0.1:8080`. Browser tests require a separate identity-free Foundation account plus the documented synthetic roster. They exercise teacher/student access, profiles, creation, settings, joining, private requests, actual cutoff, keyboard/mobile layouts, deep links and lost committed responses without replay. Creation journeys require a fresh disposable database for each complete run; retain prior history rather than resetting activities. Use separate fresh databases for jar and image runs. Read-failure tests inject transport failures around real authenticated sessions. They do not silently skip when credentials or services are missing. Result journeys invoke the production scheduler from the Node test process; never use `VITE_*` variables or browser code for its secret. Screenshot artifacts are in ignored `frontend/test-results/`.
 
 The GitHub Actions workflow runs frontend checks, PostgreSQL-backed backend tests, real-backend Chromium smoke tests, and a Docker build. It contains no deployment step. Its execution on GitHub remains unverified until this repository is pushed and the workflow actually runs.
 
@@ -124,8 +124,7 @@ Compose's optional app profile publishes only loopback port 8080 and uses the lo
 No cloud deployment or provider provisioning has been performed. Render Free, Neon Free, external scheduler selection, quotas, monitoring, and backup arrangements remain subject to the approved validation gates.
 
 The remaining hosted checks and account-access requirements are recorded in
-[hosting-validation.md](docs/hosting-validation.md). The scheduler's 501 response
-must never be treated as proof that deadline work completed.
+[hosting-validation.md](docs/hosting-validation.md). Scheduler HTTP success alone must never be treated as proof that allocation or hosted deadline work completed.
 
 ## Password-hashing measurement
 
@@ -164,7 +163,7 @@ suite or prove hosted behavior.
 
 `POST /internal/scheduler/tick` requires `Authorization: Bearer <SCHEDULER_SECRET>`. The secret must be at least 32 bytes when configured; with no secret, the endpoint rejects all calls. It is stateless and cannot authorize browser sessions. Its dedicated security chain is the only CSRF exemption; login/logout and other browser mutations remain protected.
 
-The production `DueWork` implementation deliberately returns **501 Not Implemented**: deadline allocation is not a foundation feature. Do not treat endpoint reachability as completed allocation. Local timer/catch-up adapters are disabled by default; the integration suite enables them with a test-only PostgreSQL probe to verify automatic invocation and safe duplicate probe processing.
+The production `DueWork` implementation prepares durable allocation plans for due activities and expires pending requests. An authenticated tick returns **204 No Content** after its bounded processing invocation; this does not mean every activity completed successfully. Integrity faults halt affected work; transient failures retain durable capped-backoff retries. Slice9 adds a separate atomic assignment/finalization transaction after the immutable plan commits. Slice10 exposes only complete authorized projections: assigned teachers use `/api/courses/{courseId}/results/roster`; currently enrolled fixed student participants use `/api/courses/{courseId}/results/my-group`. Reads validate finalized coverage in a coherent snapshot and never run due-work. Teachers receive no About me, and students receive only their own group. Local timer/catch-up adapters remain disabled by default; `--app.scheduler.enabled=true` enables startup catch-up and periodic reconciliation. Foundation tests retain their separate test-only probe; production preparation has its own PostgreSQL coverage.
 
 Runtime defaults are conservative starting points, not validated cloud budgets: JDBC pool maximum 5, minimum idle 0, keepalive disabled, connection timeout 10 seconds, session idle timeout 30 minutes, expired-session cleanup hourly, and temporary login throttling at 100 attempts per minute per remote address with bounded memory. These must be tuned against actual hosting, shared-client networks, database usage, and security measurements. Cleanup cadence does not extend logical session validity.
 
@@ -177,3 +176,9 @@ docker compose --profile app stop
 ```
 
 Stop any directly launched backend/Vite processes in their own terminal. Do not use volume removal or database reset as a normal setup/recovery step.
+
+### Final roster CSV
+
+After complete finalization, the assigned teacher can choose **Download CSV** in Final roster. The fresh authorized endpoint is `GET /api/courses/{courseId}/results/roster.csv`. It returns exactly Group name, Student ID, Student name, ordered by numeric group ordinal then deterministic textual Student ID, with RFC4180 comma quoting, CRLF and UTF8 BOM. Every fixed participant appears once; About me is excluded. The full snapshot and all cells are validated before a successful attachment is created. Unsafe or incomplete data rejects the whole export with safe503 feedback; values are never rewritten. Failed/interrupted downloads require an explicit retry and do not change grouping.
+
+In Excel, import Student ID as text to preserve leading zeros: CSV contains no column-type metadata. IDs remain unchanged in the file. Downloads use private/no-store headers and no durable application file storage.

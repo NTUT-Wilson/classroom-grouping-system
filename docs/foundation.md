@@ -1,5 +1,7 @@
 # Initial Project Foundation
 
+**Current local implementation:** Slices1–12 are implemented and locally verified, including final complete jar/image/prototype acceptance and three independent source reviews. Read [Batch2 evidence](slices-8-12.md) for the latest checkpoint. The initial2026-10-13 sections below are historical: Courses/Results are implemented, and the production scheduler now returns authenticated204 for bounded real allocation work. Remote CI allowance and hosted/operational gates remain open.
+
 **Phase:** Local foundation setup, 2026-10-13. Product behavior remains governed by [PRD.md](PRD.md); technical direction remains governed by [tech-stack.md](tech-stack.md). This work does not implement V1 business workflows or confirm a cloud deployment.
 
 ## Established
@@ -115,3 +117,23 @@ The latest completed batch checkpoint is [Slice 7](slice-7.md): frontend 136 tes
 Current whole-batch local image build/runtime and all 22 image browser workflows passed with one worker and zero retries against a separate fresh disposable database. Runtime verified UID 10001, configured 512 MiB, health 200, anonymous scheduler 401/authenticated ordinary 501, no OOM flag or restarts before/after the suite. The 317.7 MiB idle sample is not peak or hosted capacity evidence. All seven unchanged prototype tests passed serially after a retained initial parallel-build stall. Three fresh independent reviewers completed with no actionable defects; one optional history-page duplicate-control limitation is recorded in [batch evidence](slices-2-7.md), alongside commands, failures, delegation, delivery order and boundaries.
 
 Private remote CI/no-cost allowance checks, hosted cold starts, unattended scheduling, monitoring, combined quotas and recovery remain open; backups and final resource tuning remain deferred. The ordinary scheduler still intentionally returns authenticated 501. No local check supplies hosted evidence or proves allocation, and Foundation as a whole remains open.
+
+## Batch 2 local start — 2026-10-16
+
+Slices 8–12 are authorized for local implementation, with sequential verified checkpoints; [batch evidence](slices-8-12.md) and [Slice 8](slice-8.md) record progress. Docker engine 29.7.2 is currently reachable outside the sandbox; the initial sandbox pipe denial is a filesystem/environment restriction, not recurrence of the historical Docker socket startup fault. No Docker repair/reset was performed. Current frontend 136 tests/build and 13 focused production-preparation PostgreSQL tests passed. Full backend/browser/review verification remains in progress; no Slice 8 completion or full V1 readiness is claimed.
+
+The production scheduler placeholder is being replaced by durable preparation. An authenticated 204 indicates a bounded processing invocation, not complete allocation or hosted reliability. Foundation probe tests remain distinct from production-allocation evidence. Private remote CI/no-cost allowance and hosted cold starts, unattended external scheduling, missed-run monitoring, combined quotas/recovery, backups and final resource tuning remain open/deferred. Earlier local and 501-placeholder results above remain historical.
+
+Slice8 checkpoint subsequently passed full Maven134 tests with no failures/errors/skips, all22 packaged-jar Chromium workflows, actual production preparation/read-only observations and a fresh independent review; see [Slice8](slice-8.md). The initial full run had7 stale migration-count assertions, corrected without removing data/session-preservation checks. Production preparation is locally verified; assignment/finalization and whole-batch image validation remain for later checkpoints. Hosted/remote gates above remain open.
+
+Slice9 subsequently passed full Maven146 tests (including25 production allocation/recovery cases),4 selected packaged-jar cutoff workflows, actual complete allocation/managerless-group/read-only observations and independent review. V8 saved plans survive V9 upgrade; actual disposable PostgreSQL outage/restart recovers through production DueWork. See [Slice9](slice-9.md). These are local functional checks; no final-result UI, CSV, whole-batch image acceptance, remote CI, hosted reliability or backup restore is claimed by this checkpoint.
+
+Slice10 local checkpoint now passes frontend161/build, full Maven155 PostgreSQL/ArchUnit tests and all23 packaged-jar browser workflows, with authorized complete teacher/student results and independent review. [Slice10](slice-10.md) retains initial failures and exact scope. Current image/CSV/whole-batch acceptance is still pending; hosted and remote gates remain open.
+
+## Batch 2 final local evidence — 2026-10-16
+
+Current final frontend178 tests/build, corrected full Java25 Maven163 tests (0 failures/errors/skips), all23 packaged-jar and all23 current-image Chromium workflows (one worker/zero retries), prototype7 and CI YAML/six Bash syntax checks passed. Real PostgreSQL17.11 covers fresh/upgrade migrations, production preparation/completion/recovery, authorization and CSV; [Slice12](slice-12.md) preserves exact scenarios and initial failures. The one final startup-poll test error was corrected narrowly and reverified through25 focused cases and the complete163-test run; production code was unchanged.
+
+Current local image SHA25637469b16a6f7a9a2fa7a0aa4ddbc3380d714b04b9657d124ce9f2870852b6209 passed UID10001,configured512MiB,health200,anonymous scheduler401/authenticated204,no OOM/restarts before/after the full browser run. Samples281.8/295/316.4/326.9MiB are bounded local observations,not peak or hosted capacity evidence. Only owned temporary app/image/database services were stopped; data and unrelated services remain preserved. Whole-batch review results are recorded in the linked acceptance report.
+
+These results resolve the current local Docker/Testcontainers/image checks, while historical socket/501-placeholder evidence above remains intact. Private remote CI/no-cost allowance, hosted cold starts/unattended external scheduling/missed-run monitoring/combined quotas/recovery remain open; backups/restore arrangements and final resource tuning remain deferred. Foundation/hosting are not fully validated and no hosted readiness is claimed.

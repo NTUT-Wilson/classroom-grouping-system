@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { App } from './App'
 import * as api from './api'
-vi.mock('./api', async importOriginal => ({ ...await importOriginal<typeof api>(), initializeSession: vi.fn(), signIn: vi.fn(), signOut: vi.fn(), listCourses: vi.fn(), getCourse: vi.fn() }))
+vi.mock('./api', async importOriginal => ({ ...await importOriginal<typeof api>(), initializeSession: vi.fn(), signIn: vi.fn(), signOut: vi.fn(), listCourses: vi.fn(), getCourse: vi.fn(), getResults: vi.fn() }))
 const teacher: api.Session = { accountId: 'teacher', username: 'demo', role: 'TEACHER' }
 const course: api.Course = { id: '11111111-1111-1111-1111-111111111111', code: 'CS101', name: 'Computing' }
 beforeEach(() => {
@@ -134,7 +134,7 @@ test('teacher direct Groups route is denied without grouping data or student nav
   render(<App />)
   expect(await screen.findByRole('heading', { name: 'Groups unavailable' })).toBeInTheDocument()
   expect(screen.queryByRole('link', { name: 'Groups' })).not.toBeInTheDocument()
-  expect(screen.queryByRole('navigation', { name: 'Course navigation' })).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Final roster' })).toHaveAttribute('href', `#/courses/${course.id}/results`)
 })
 
 test('teacher direct Requests route is denied without request navigation', async () => {
@@ -153,4 +153,23 @@ test('duplicate route notification does not strand the loaded workspace', async 
   window.dispatchEvent(new HashChangeEvent('hashchange'))
   await waitFor(() => expect(screen.getByRole('link', { name: /Computing/ })).toBeInTheDocument())
   expect(screen.queryByText('Loading courses…')).not.toBeInTheDocument()
+})
+
+
+test('teacher results deep link restores its role-aware result view', async () => {
+  window.location.hash = `#/courses/${course.id}/results`
+  vi.mocked(api.initializeSession).mockResolvedValue(teacher)
+  vi.mocked(api.getResults).mockResolvedValue({ activityId: 'a', status: 'FINALIZING', groups: [] })
+  render(<App />)
+  expect(await screen.findByRole('heading', { name: 'Grouping is finalizing' })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Final roster' })).toHaveAttribute('aria-current', 'page')
+  expect(api.getResults).toHaveBeenCalledWith(course.id, 'TEACHER')
+})
+
+test('student direct teacher roster route does not request results', async () => {
+  window.location.hash = `#/courses/${course.id}/results`
+  vi.mocked(api.initializeSession).mockResolvedValue({ ...teacher, role: 'STUDENT' })
+  render(<App />)
+  expect(await screen.findByRole('heading', { name: 'Results unavailable' })).toBeInTheDocument()
+  expect(api.getResults).not.toHaveBeenCalled()
 })

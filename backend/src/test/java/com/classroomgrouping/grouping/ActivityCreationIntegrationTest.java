@@ -193,6 +193,6 @@ class ActivityCreationIntegrationTest {
         for(String table:tables)assertEquals(before.get(table),db.queryForList("SELECT * FROM "+table));
         assertArrayEquals(new byte[]{1,2,3},(byte[])db.queryForMap("SELECT * FROM spring_session_attributes").get("attribute_bytes"));
         assertEquals(0,db.queryForObject("SELECT count(*) FROM grouping_activity",Integer.class));
-        assertEquals(7,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
+        assertEquals(9,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
     }
 }

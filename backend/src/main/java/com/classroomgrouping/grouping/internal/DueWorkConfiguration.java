@@ -4,15 +4,14 @@ import com.classroomgrouping.grouping.api.DueWork;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration
 class DueWorkConfiguration {
     @Bean
     @ConditionalOnMissingBean(DueWork.class)
-    DueWork unimplementedDueWork() {
-        return () -> { throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED,
-                "Deadline allocation is not implemented in the foundation"); };
+    DueWork databaseDueWork(JdbcTemplate jdbc, PlatformTransactionManager transactions) {
+        return new DatabaseDueWork(jdbc, transactions);
     }
 }

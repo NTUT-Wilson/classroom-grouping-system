@@ -89,7 +89,7 @@ class FoundationIntegrationTest {
     }
 
     @Test void migrationsAndPersistentSessionSchemaUseRealPostgres() {
-        assertEquals(7, jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success", Integer.class));
+        assertEquals(9, jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success", Integer.class));
         assertTrue(jdbc.queryForObject("SELECT password_hash FROM app_account WHERE username='foundation-test'",
                 String.class).startsWith("{bcrypt}"));
         assertEquals("spring_session", jdbc.queryForObject("SELECT to_regclass('spring_session')::text", String.class));

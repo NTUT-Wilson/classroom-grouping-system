@@ -60,10 +60,12 @@ class BatchFixtureSetupIntegrationTest {
         assertEquals(9, accounts.size()); assertEquals(8, identities.size());
         assertEquals("00007001", identities.getFirst().get("student_id"));
         assertEquals("陳 Batch 一", identities.getFirst().get("student_name"));
-        assertEquals(48, jdbc.queryForObject("SELECT count(*) FROM course_enrollment", Integer.class));
-        assertEquals(11, jdbc.queryForObject("SELECT count(*) FROM course_teacher_assignment", Integer.class));
+        assertEquals(60, jdbc.queryForObject("SELECT count(*) FROM course_enrollment", Integer.class));
+        assertEquals(13, jdbc.queryForObject("SELECT count(*) FROM course_teacher_assignment", Integer.class));
         assertEquals(8, jdbc.queryForObject("SELECT count(*) FROM course_enrollment e JOIN course c ON c.id=e.course_id WHERE c.code='BATCH-707'", Integer.class));
         assertEquals(4, jdbc.queryForObject("SELECT count(*) FROM course_enrollment e JOIN course c ON c.id=e.course_id WHERE c.code='BATCH-708'", Integer.class));
+        assertEquals(8, jdbc.queryForObject("SELECT count(*) FROM course_enrollment e JOIN course c ON c.id=e.course_id WHERE c.code='BATCH-1001'", Integer.class));
+        assertEquals(4, jdbc.queryForObject("SELECT count(*) FROM course_enrollment e JOIN course c ON c.id=e.course_id WHERE c.code='BATCH-1002'", Integer.class));
         assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM grouping_activity", Integer.class));
         var batchCourses = jdbc.queryForList("SELECT id, code, name FROM course WHERE code LIKE 'BATCH-%' ORDER BY code");
         var batchEnrollments = jdbc.queryForList("SELECT course_id, account_id FROM course_enrollment ORDER BY course_id, account_id");
@@ -103,7 +105,7 @@ class BatchFixtureSetupIntegrationTest {
         assertEquals(identities, jdbc.queryForList("SELECT account_id, student_id, student_name FROM student_identity WHERE student_id LIKE '0000700%' ORDER BY student_id"));
         assertEquals("Existing synthetic introduction 👩🏽‍💻", jdbc.queryForObject(
                 "SELECT about_me FROM course_introduction WHERE course_id=? AND account_id=?", String.class, courseId, accountId));
-        assertEquals(50, jdbc.queryForObject("SELECT count(*) FROM course_enrollment", Integer.class));
+        assertEquals(62, jdbc.queryForObject("SELECT count(*) FROM course_enrollment", Integer.class));
         assertEquals(batchCourses, jdbc.queryForList("SELECT id, code, name FROM course WHERE code LIKE 'BATCH-%' ORDER BY code"));
         assertEquals(batchEnrollments, jdbc.queryForList("SELECT e.course_id, e.account_id FROM course_enrollment e JOIN course c ON c.id=e.course_id WHERE c.code LIKE 'BATCH-%' ORDER BY e.course_id, e.account_id"));
         assertEquals(batchTeachers, jdbc.queryForList("SELECT e.course_id, e.account_id FROM course_teacher_assignment e JOIN course c ON c.id=e.course_id WHERE c.code LIKE 'BATCH-%' ORDER BY e.course_id, e.account_id"));

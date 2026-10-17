@@ -222,3 +222,49 @@ test('lost invitation response never replays and explicit later choice gets fres
   await decideInvitation('c/id', 'i/id', { commandKey: 'second', decision: 'REJECT' })
   expect(fetchMock.mock.calls[3]).toEqual(['/api/courses/c%2Fid/invitations/i%2Fid/decision', { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': 'fresh', 'Content-Type': 'application/json' }, body: JSON.stringify({ commandKey: 'second', decision: 'REJECT' }) }])
 })
+
+test('results reads select a role-specific endpoint and disable caching', async () => {
+  const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ activityId: null, status: 'ABSENT', groups: [] }), { status: 200 })))
+  vi.stubGlobal('fetch', fetchMock)
+  const api = await import('./api')
+  await api.getResults('course/id', 'TEACHER')
+  expect(fetch).toHaveBeenLastCalledWith('/api/courses/course%2Fid/results/roster', { credentials: 'same-origin', cache: 'no-store' })
+  await api.getResults('course/id', 'STUDENT')
+  expect(fetch).toHaveBeenLastCalledWith('/api/courses/course%2Fid/results/my-group', { credentials: 'same-origin', cache: 'no-store' })
+})
+
+const csvHeaders = { 'Content-Type': 'text/csv;charset=UTF-8', 'Content-Disposition': 'attachment; filename="classroom-groups-11111111-1111-4111-8111-111111111111.csv"' }
+test('CSV uses fresh authenticated uncached GET and awaits the full binary body', async () => {
+  let resolve!: (value: Blob) => void
+  const blob = new Blob(['\uFEFFGroup name,Student ID,Student name\r\nGroup 1,00001,林\r\n'])
+  const fetchMock = vi.fn().mockResolvedValue({ ok: true, headers: new Headers(csvHeaders), blob: () => new Promise(done => { resolve = done }) })
+  vi.stubGlobal('fetch', fetchMock)
+  const { getRosterCsv } = await import('./api')
+  const pending = getRosterCsv('course/one'); let complete = false; void pending.then(() => { complete = true })
+  await Promise.resolve(); expect(complete).toBe(false)
+  resolve(blob)
+  expect(await pending).toEqual({ blob, filename: 'classroom-groups-11111111-1111-4111-8111-111111111111.csv' })
+  expect(fetchMock).toHaveBeenCalledExactlyOnceWith('/api/courses/course%2Fone/results/roster.csv', { credentials: 'same-origin', cache: 'no-store' })
+})
+test('CSV interrupted body rejects without retry and a later deliberate read is fresh', async () => {
+  const fetchMock = vi.fn().mockResolvedValueOnce({ ok: true, headers: new Headers(csvHeaders), blob: vi.fn().mockRejectedValue(new TypeError('body interrupted')) }).mockResolvedValueOnce(new Response('complete', { headers: csvHeaders }))
+  vi.stubGlobal('fetch', fetchMock)
+  const { getRosterCsv } = await import('./api')
+  await expect(getRosterCsv('course')).rejects.toThrow('body interrupted')
+  expect(fetchMock).toHaveBeenCalledTimes(1)
+  await expect(getRosterCsv('course')).resolves.toMatchObject({ filename: expect.stringMatching(/\.csv$/) })
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+})
+test.each([401, 403, 404, 503])('CSV rejection %s preserves status and never reads an error as a file', async status => {
+  const body = vi.fn()
+  const fetchMock = vi.fn().mockResolvedValue({ ok: false, status, blob: body })
+  vi.stubGlobal('fetch', fetchMock)
+  const { getRosterCsv } = await import('./api')
+  await expect(getRosterCsv('course')).rejects.toMatchObject({ status })
+  expect(body).not.toHaveBeenCalled(); expect(fetchMock).toHaveBeenCalledOnce()
+})
+test.each([{ headers: { ...csvHeaders, 'Content-Disposition': 'attachment; filename="unsafe.csv"' }, body: 'complete' }, { headers: { ...csvHeaders, 'Content-Type': 'application/json' }, body: '{}' }, { headers: csvHeaders, body: '' }])('invalid or empty CSV response cannot become a download (%j)', async ({ headers, body }) => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { headers })))
+  const { getRosterCsv } = await import('./api')
+  await expect(getRosterCsv('course')).rejects.toThrow(/CSV response/)
+})

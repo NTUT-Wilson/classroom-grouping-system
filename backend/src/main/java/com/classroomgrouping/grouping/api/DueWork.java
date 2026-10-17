@@ -1,6 +1,6 @@
 package com.classroomgrouping.grouping.api;
 
-/** Provider-independent trigger contract. Allocation implementation is deferred. */
+/** Provider-independent, bounded trigger for durable deadline processing and recovery. */
 public interface DueWork {
     void processDueWork();
 }
