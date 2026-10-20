@@ -51,7 +51,7 @@ test('settings edits reconcile lost responses, extend only later, and preserve i
     const t = await teacher.newPage(); const s = await student.newPage()
     await login(t, 'batch-teacher'); await login(s, 'batch-student-1')
     const settings = await course(t, 'BATCH-404'); const cutoff = await course(t, 'BATCH-405')
-    const original = await create(t, settings.id, '2099-03-15T06:30:00Z')
+    const original = await create(t, settings.id, '2099-03-15T18:30:00Z')
     await t.goto(`/#/courses/${settings.id}`)
     await t.getByRole('button', { name: 'Edit instructions', exact: true }).click()
     const text = '  Revised 😀\n<script>window.settingsInjected=true</script> & plain text  '
@@ -69,17 +69,17 @@ test('settings edits reconcile lost responses, extend only later, and preserve i
 
     await t.getByRole('button', { name: 'Extend deadline', exact: true }).click()
     for (const invalid of ['2099-03-15T14:30', '2099-03-15T14:29']) {
-      await t.getByLabel('New deadline (Asia/Taipei)', { exact: true }).fill(invalid)
+      await t.getByLabel('New deadline (America/New_York)', { exact: true }).fill(invalid)
       await t.getByRole('button', { name: 'Save deadline', exact: true }).click()
       await expect(t.getByRole('alert')).toContainText('Choose a deadline later than the current deadline.')
       expect((await read(t, settings.id))!.deadline).toBe(original.deadline)
     }
-    await t.getByLabel('New deadline (Asia/Taipei)', { exact: true }).fill('2099-03-15T14:31')
+    await t.getByLabel('New deadline (America/New_York)', { exact: true }).fill('2099-03-15T14:31')
     await t.getByRole('button', { name: 'Save deadline', exact: true }).click()
     await expect(t.getByText('Deadline extended.', { exact: true })).toBeVisible()
-    await expect(t.locator('time')).toHaveText(/15 Mar 2099.*14:31.*Asia\/Taipei/)
+    await expect(t.locator('time')).toHaveText(/15 Mar 2099.*14:31.*America\/New_York/)
     const extended = (await read(t, settings.id))!
-    expect(extended.deadline).toBe('2099-03-15T06:31:00Z'); expect(extended.instructions).toBe(text)
+    expect(extended.deadline).toBe('2099-03-15T18:31:00Z'); expect(extended.instructions).toBe(text)
     expect(extended.groups).toEqual(original.groups)
 
     const path = `/api/courses/${settings.id}/activity/instructions`
@@ -117,7 +117,7 @@ test('settings edits reconcile lost responses, extend only later, and preserve i
     await expect(t.getByRole('button', { name: 'Edit instructions', exact: true })).toBeVisible()
     await expect.poll(async () => (await read(t, cutoff.id))!.status, { timeout: 20_000, intervals: [100, 250, 500] }).toBe('FINALIZING')
     const denied = await t.request.post(`/api/courses/${cutoff.id}/activity/deadline`, {
-      headers: await headers(t), data: { commandKey: crypto.randomUUID(), deadline: '2099-03-15T06:30:00Z' },
+      headers: await headers(t), data: { commandKey: crypto.randomUUID(), deadline: '2099-03-15T18:30:00Z' },
     })
     expect(denied.status()).toBe(409)
     expect((await denied.json()).code).toBe('ACTIVITY_CLOSED')

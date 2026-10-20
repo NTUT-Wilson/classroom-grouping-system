@@ -59,7 +59,7 @@ test('deliberate joining shows profiles, loses a stale empty-group race safely, 
     await login(t!, 'batch-teacher'); await login(manager!, 'batch-student-1'); await login(stale!, 'batch-student-2')
     await login(rival!, 'batch-student-3'); await login(uncertain!, 'batch-student-4')
     const target = await course(t!, 'BATCH-505')
-    await create(t!, target.id, '2099-03-15T06:30:00Z', [2, 2, 2, 2])
+    await create(t!, target.id, '2099-03-15T18:30:00Z', [2, 2, 2, 2])
     const introduction = '<script>window.groupInjected=true</script> & teamwork 😀'
     const savedProfile = await manager!.request.put(`/api/courses/${target.id}/about-me`, {
       headers: await headers(manager!), data: { aboutMe: introduction },

@@ -1,6 +1,10 @@
 # Classroom Grouping System — V1 PRD
 
+**Project-wide amendment (2026-10-19):** The English-only United States university assumption in [Project assumptions](project-assumptions.md) applies to V1, V2, and future requirements, architecture, flows, and acceptance. No multilingual support, translation, localization, or cross-language retrieval is required. This is not a nationality or native-language verification requirement. All deadline entry and display use America/New_York with daylight-saving handling; reject nonexistent and ambiguous wall times. Backend validation compares instants against authoritative database time.
+
 ## 1. Document status and sources
+
+**V2 planning:** The [confirmed V2 PRD](v2-PRD.md) explicitly amends lifecycle behavior for V2 and adds announcements/course assistance. Its exclusions retain no manual application withdrawal or invitation cancellation. V1 exclusions below remain V1 requirements; V2 planning does not implement features or change this version's permissions. Project-wide English/New York amendments above apply to both versions.
 
 **Status:** V1 product scope confirmed by the user on 2026-10-12. The product grilling workflow is complete. Product behavior through Q72 is recorded below, with superseded proposals identified. Technical design and Project Foundation validation remain pending; scope confirmation does not authorize implementation, project initialization, or deployment.
 
@@ -121,7 +125,7 @@ Confirmed review answers:
 
 - **Q63 — Current description only:** Users see only the latest saved activity description. V1 provides no user-facing description version history or restore feature; this does not remove the separate request history confirmed under Q67.
 
-- **Q64 — Declared deadline timezone:** All deadline entry and display use Asia/Taipei time, clearly labeled, regardless of the user's device timezone. Backend time remains authoritative and Q54/Q55 eligibility rules still apply.
+- **Q64 — Declared deadline timezone:** All deadline entry and display use America/New_York time, clearly labeled, regardless of the user's device timezone. Backend time remains authoritative and Q54/Q55 eligibility rules still apply.
 
 - **Q65 — No earlier request expiry:** Pending applications and invitations have no separate expiration timer before the activity's current deadline. They end through a permitted response, Q9 join-triggered cancellation, Q56 group-full cancellation, or Q40 deadline expiry; an unanswered request may remain pending until one of these outcomes.
 
@@ -314,7 +318,7 @@ Shared security and failure requirements in Sections 6–7 apply to every releva
 **Status:** Confirmed product behavior; implementation details remain technical design work. **Actor:** Teacher. **Trigger:** Activity creation for a selected assigned course.
 
 1. The teacher requests the creation form; the backend checks the teacher session and course assignment.
-2. The teacher enters required plain-text instructions (nonblank, at most 5,000 characters), the manual capacity list, and a future deadline in labeled Asia/Taipei time, then submits.
+2. The teacher enters required plain-text instructions (nonblank, at most 5,000 characters), the manual capacity list, and a future deadline in labeled America/New_York time, then submits.
 3. The backend rechecks authentication, assignment, authorization, CSRF, the one-activity-per-course limit, at least two eligible participants, a nonempty capacity list, the required plain-text instructions and 5,000-character limit, that the deadline is present and strictly in the future according to backend time, that each submitted capacity is a whole number of at least 2 and their sum equals the eligible student count, and the remaining activity validation rules. A second activity for the same course is rejected.
 4. Invalid inputs, including fewer than two participants, an empty capacity list, missing/nonfuture deadlines, entries that are not whole numbers of at least 2 or a total below or above the eligible student count, produce correction feedback; the teacher may correct and resubmit or stop.
 5. A permitted submission fixes the eligible participant list and saves it with the activity and all its groups together transactionally, with one group per teacher-entered capacity, named Group 1, Group 2, and so on in list order under Q47. The teacher sees activity details after confirmed creation; there is no separate group-generation step. The activity is immediately visible to eligible students and open for permitted grouping actions after successful creation under Q33; no separate publish step or scheduled opening is provided.
@@ -323,7 +327,7 @@ Shared security and failure requirements in Sections 6–7 apply to every releva
 
 **Failure outcomes:** Access/security rejection, invalid input (including blank/oversized instructions or a missing/nonfuture deadline), save failure, or uncertain submission outcome.
 
-**Technical design remaining:** Creation-time consistency enforcement and deadline/concurrency implementation. Q72 requires at least two participants and a nonempty list; Q30/Q31 enforce exact total and whole-number capacities of at least 2. Q64 fixes Asia/Taipei entry/display. Q34/Q59 prohibit capacity edits and deletion/replacement/reset; Q35/Q61 permit text-only instructions edits and Q36–Q38 govern deadline amendments. Additional settings or limits have not been selected.
+**Technical design remaining:** Creation-time consistency enforcement and deadline/concurrency implementation. Q72 requires at least two participants and a nonempty list; Q30/Q31 enforce exact total and whole-number capacities of at least 2. Q64 fixes America/New_York entry/display. Q34/Q59 prohibit capacity edits and deletion/replacement/reset; Q35/Q61 permit text-only instructions edits and Q36–Q38 govern deadline amendments. Additional settings or limits have not been selected.
 
 **Instructions amendment (Q35, Q61):** The assigned teacher may submit revised task-description text while grouping is open, after the deadline, during allocation, and after finalization. The backend rechecks authentication, course assignment, resource access, CSRF, and the required nonblank plain-text description of at most 5,000 characters before saving; the grouping cutoff does not block this text-only edit. Confirmed success shows the saved text; rejected or definitively failed edits leave the saved instructions unchanged. An instruction edit cannot alter the deadline, capacity layout, groups, memberships, or pending requests. Q60 confirms existing screens without email, push, or a separate notification center; Q63 excludes user-facing description history and restore; this capability grants no teacher live-progress access.
 

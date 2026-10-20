@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApiError, extendDeadline, getActivity, saveInstructions } from './api'
 import type { Activity } from './api'
-import { ActivityDetails, Deadline, instructionsError, taipeiDeadline } from './Activity'
+import { ActivityDetails, Deadline, instructionsError, universityDeadline } from './Activity'
+import { universityWallTime } from './universityTime'
 
 type Editor = 'instructions' | 'deadline' | null
 export function ActivitySettings({ initial, courseId, role, expired }: { initial: Activity; courseId: string; role: 'TEACHER' | 'STUDENT'; expired: () => void }) {
@@ -42,13 +43,13 @@ export function ActivitySettings({ initial, courseId, role, expired }: { initial
   }
   function begin(kind: Exclude<Editor, null>) {
     if (!activity || busy || blocked) return
-    setEditor(kind); setDraft(kind === 'instructions' ? activity.instructions : new Date(Date.parse(activity.deadline) + 8 * 3600000).toISOString().slice(0, 16))
+    setEditor(kind); setDraft(kind === 'instructions' ? activity.instructions : universityWallTime(activity.deadline))
     setIssue(''); setMessage(''); setReviewDraft(false)
   }
   async function save() {
     if (pending.current || blocked || reviewDraft || !activity || !editor) return
-    const value = taipeiDeadline(draft)
-    const error = editor === 'instructions' ? instructionsError(draft) : !value ? 'Enter a valid deadline in Asia/Taipei time.'
+    const value = universityDeadline(draft)
+    const error = editor === 'instructions' ? instructionsError(draft) : !value ? 'Enter a valid, unambiguous deadline in America/New_York time. Times skipped or repeated by daylight saving are not accepted.'
       : activity.status !== 'OPEN' ? 'Grouping is closed. The deadline cannot be extended or reopened.'
         : Date.parse(value) <= Date.parse(activity.deadline) ? 'Choose a deadline later than the current deadline.' : ''
     if (error) { setIssue(error); field.current?.focus(); return }
@@ -81,7 +82,7 @@ export function ActivitySettings({ initial, courseId, role, expired }: { initial
     </>}
     {role === 'TEACHER' && editor && <form className="activity-panel activity-form settings-editor" noValidate onSubmit={event => { event.preventDefault(); void save() }}>
       <span className="eyebrow">ACTIVITY SETTINGS</span><h2 ref={editorHeading} tabIndex={-1}>{editor === 'instructions' ? 'Edit activity instructions' : 'Extend grouping deadline'}</h2>
-      {editor === 'instructions' ? <><p>Update the task description and guidance. Instructions remain editable after grouping closes.</p><label htmlFor="settings-instructions">Instructions</label><textarea ref={field} id="settings-instructions" rows={8} value={draft} disabled={busy} onChange={event => setDraft(event.target.value)} aria-describedby="settings-text-hint" /><p id="settings-text-hint" className="activity-hint">Required · plain text · {Array.from(draft).length} / 5,000 characters</p></> : <><p>The deadline can only move later while grouping is open. Eligibility is checked again when saved.</p><label htmlFor="settings-deadline">New deadline (Asia/Taipei)</label><input ref={field} id="settings-deadline" type="datetime-local" value={draft} disabled={busy} onChange={event => setDraft(event.target.value)} aria-describedby="settings-deadline-hint" /><p id="settings-deadline-hint" className="activity-hint">Asia/Taipei (UTC+8), regardless of your device timezone.</p></>}
+      {editor === 'instructions' ? <><p>Update the task description and guidance. Instructions remain editable after grouping closes.</p><label htmlFor="settings-instructions">Instructions</label><textarea ref={field} id="settings-instructions" rows={8} value={draft} disabled={busy} onChange={event => setDraft(event.target.value)} aria-describedby="settings-text-hint" /><p id="settings-text-hint" className="activity-hint">Required · plain text · {Array.from(draft).length} / 5,000 characters</p></> : <><p>The deadline can only move later while grouping is open. Eligibility is checked again when saved.</p><label htmlFor="settings-deadline">New deadline (America/New_York)</label><input ref={field} id="settings-deadline" type="datetime-local" value={draft} disabled={busy} onChange={event => setDraft(event.target.value)} aria-describedby="settings-deadline-hint" /><p id="settings-deadline-hint" className="activity-hint">America/New_York, regardless of your device timezone.</p></>}
       {activity && <div className="settings-current"><strong>{editor === 'instructions' ? 'Current saved instructions' : 'Current grouping deadline'}</strong>{editor === 'instructions' ? <p className="activity-instructions">{activity.instructions}</p> : <Deadline value={activity.deadline} />}</div>}
       {blocked && <p role="status">Your draft is preserved. Saving is paused until a successful activity check.</p>}
       {reviewDraft && <p role="status">Compare your preserved draft with the current saved value before making a new explicit save.</p>}

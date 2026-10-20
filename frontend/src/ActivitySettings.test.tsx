@@ -4,7 +4,7 @@ import { beforeEach, expect, test, vi } from 'vitest'
 import { ActivitySettings } from './ActivitySettings'
 import * as api from './api'
 vi.mock('./api', async original => ({ ...await original<typeof api>(), getActivity: vi.fn(), saveInstructions: vi.fn(), extendDeadline: vi.fn() }))
-const activity: api.Activity = { id: 'a', courseId: 'c', instructions: 'Saved <b>plain</b> text  ', deadline: '2099-10-20T02:00:00Z', status: 'OPEN', groups: [{ id: 'g', ordinal: 1, name: 'Group 1', capacity: 2 }] }
+const activity: api.Activity = { id: 'a', courseId: 'c', instructions: 'Saved <b>plain</b> text  ', deadline: '2099-10-20T14:00:00Z', status: 'OPEN', groups: [{ id: 'g', ordinal: 1, name: 'Group 1', capacity: 2 }] }
 beforeEach(() => { vi.resetAllMocks(); vi.mocked(api.getActivity).mockResolvedValue({ activity, enrolledCount: null }); vi.mocked(api.saveInstructions).mockResolvedValue({ activity, enrolledCount: null }); vi.mocked(api.extendDeadline).mockResolvedValue({ activity, enrolledCount: null }) })
 function view(initial = activity, role: 'TEACHER' | 'STUDENT' = 'TEACHER', expired = vi.fn()) { return render(<ActivitySettings initial={initial} courseId="c" role={role} expired={expired} />) }
 test('instructions save exact escaped text after cutoff without other fields', async () => {
@@ -17,12 +17,19 @@ test('instructions save exact escaped text after cutoff without other fields', a
   expect(api.saveInstructions).toHaveBeenCalledExactlyOnceWith('c', { commandKey: expect.stringMatching(/^[0-9a-f-]{36}$/), instructions: ' 😀\n<script>literal</script>  ' })
   expect(container.querySelector('script')).toBeNull(); expect(api.extendDeadline).not.toHaveBeenCalled()
 })
-test('deadline requires later fixed Taipei wall time and sends only deadline command', async () => {
+test('deadline requires later New York wall time and sends only deadline command', async () => {
   const user = userEvent.setup(); view(); await user.click(screen.getByRole('button', { name: 'Extend deadline' })); await user.click(screen.getByRole('button', { name: 'Save deadline' }))
   await screen.findByText('Choose a deadline later than the current deadline.'); expect(api.extendDeadline).not.toHaveBeenCalled()
-  fireEvent.change(screen.getByLabelText('New deadline (Asia/Taipei)'), { target: { value: '2099-10-21T10:00' } })
+  fireEvent.change(screen.getByLabelText('New deadline (America/New_York)'), { target: { value: '2099-10-21T10:00' } })
   await user.click(screen.getByRole('button', { name: 'Save deadline' })); await screen.findByText('Deadline extended.')
-  expect(api.extendDeadline).toHaveBeenCalledExactlyOnceWith('c', { commandKey: expect.any(String), deadline: '2099-10-21T10:00:00+08:00' })
+  expect(api.extendDeadline).toHaveBeenCalledExactlyOnceWith('c', { commandKey: expect.any(String), deadline: '2099-10-21T10:00:00-04:00' })
+})
+test.each(['2099-03-08T02:30', '2099-11-01T01:30'])('rejects DST gap or overlap %s without sending a deadline command', async draft => {
+  const user = userEvent.setup(); view(); await user.click(screen.getByRole('button', { name: 'Extend deadline' }))
+  fireEvent.change(screen.getByLabelText('New deadline (America/New_York)'), { target: { value: draft } })
+  await user.click(screen.getByRole('button', { name: 'Save deadline' }))
+  await screen.findByText(/Times skipped or repeated by daylight saving are not accepted/)
+  expect(api.extendDeadline).not.toHaveBeenCalled()
 })
 test.each([new TypeError('lost'), new api.ApiError(403, 'csrf'), new api.ApiError(404, 'denied')])('uncertain/denied save preserves draft and requires read plus explicit review and new key', async cause => {
   vi.mocked(api.saveInstructions).mockRejectedValueOnce(cause)

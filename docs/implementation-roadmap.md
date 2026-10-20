@@ -1,10 +1,16 @@
 # Approved V1 implementation roadmap
 
+**Project-wide amendment (2026-10-19):** The English-only United States university assumption in [Project assumptions](project-assumptions.md) applies to V1, V2, and future requirements, architecture, flows, and acceptance. No multilingual support, translation, localization, or cross-language retrieval is required. This is not a nationality or native-language verification requirement. All deadline entry and display use America/New_York with daylight-saving handling; reject nonexistent and ambiguous wall times. Backend validation compares instants against authoritative database time.
+
 Approved by the user on 2026-10-13. This roadmap continues from the existing Project Foundation and approved UI prototype; it does not authorize starting Slice 1, deployment, cloud provisioning, or paid execution.
 
 The [PRD](PRD.md) governs product behavior, the [technical stack](tech-stack.md) governs technical decisions, and [AGENTS.md](../AGENTS.md) governs repository practices. Consult the [user flows](user-flows.md), [glossary](../GLOSSARY.md), and [UI prototype guide](ui-prototype.md). Preserve the approved English, course-centered UI and all permissions and lifecycle restrictions.
 
 ## Progress tracker
+
+The separate [V2 roadmap](v2-implementation-roadmap.md) is finalized as a planning deliverable; all V2 implementation slices are **Not Started**. It does not authorize a new slice, amend historical V1 verification results, or close the timezone/hosting/remote CI gates below.
+
+**Project-wide timezone follow-up (2026-10-19): In Progress.** America/New_York implementation, DST regression tests, and documentation are updated. Current frontend checks and Docker-blocked integration evidence are tracked in [timezone amendment](timezone-amendment.md); historical slice completion below is not verification of this amendment.
 
 Allowed statuses: **Not Started**, **In Progress**, **Completed**. Mark a slice Completed only when its deliverables and acceptance criteria have supporting verification evidence; record unresolved checks separately. Existing Foundation and mock prototype work do not count as completed business slices.
 
@@ -31,7 +37,7 @@ Use the following sequential order. Dependencies identify prerequisites within t
 |---|---|---|
 | **1. Accounts and course workspace** | Existing Foundation | Extend provisioned accounts with student identity, courses, assignments, and enrollments. Real login opens only permitted courses; direct access to another course is denied. Setup is repeatable without overwriting existing data. |
 | **2. Classmate profiles** | 1 | Connect Classmates and About me to stored data. Preserve Student IDs exactly, including leading zeros. Students edit only their own course-specific introduction, up to 500 characters; profiles remain readable after cutoff without exposing final assignments. |
-| **3. Activity creation** | 1 | Connect teacher setup and confirmation. Validate instructions, future Taipei deadline, and manual capacities against all enrolled students. Creation atomically fixes participants and groups and opens participation. Concurrent creation produces only one activity per course. |
+| **3. Activity creation** | 1 | Connect teacher setup and confirmation. Validate instructions, future New York deadline, and manual capacities against all enrolled students. Creation atomically fixes participants and groups and opens participation. Concurrent creation produces only one activity per course. |
 | **4. Instructions, deadline, and status** | 3 | Connect settings and lifecycle views. Instructions remain editable after cutoff; deadline extensions work only while open and only move later. Participants and capacities stay fixed. Teachers receive no live grouping progress. |
 | **5. Group discovery and first joining** | 2, 4 | Connect student group browsing and deliberate empty-group joining. First join establishes the manager. Competing joins cannot create duplicate membership or overfill groups; the losing student receives a conflict without an automatic application. |
 | **6. Applications** | 5 | Implement submission, manager approval/rejection, and private history. Applications require an occupied group with space. One pending application per student/group; rejection permits a new attempt and preserves history. Approval joins atomically and closes affected pending applications with the correct reasons. |

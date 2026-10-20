@@ -2,6 +2,10 @@
 
 Local implementation of the approved V1 modular monolith. React + Vite + TypeScript, Java 25 / Spring Boot 4.1.1, PostgreSQL, Flyway, and Spring Security with JDBC-backed sessions.
 
+The [project-wide assumptions](docs/project-assumptions.md) require English-only operation and `America/New_York` deadline entry/display across all versions. Daylight-saving gaps and repeated wall times are rejected; stored deadline instants remain unchanged. See [timezone verification](docs/timezone-amendment.md) for current checks and blockers.
+
+V2 requirements are defined in the [V2 PRD](docs/v2-PRD.md), [RAG architecture](docs/v2-architecture.md), [user flows](docs/v2-user-flows.md), and [implementation roadmap](docs/v2-implementation-roadmap.md). They cover group departure/manager succession and transfer, announcements, and a separately gated free-only course assistant. They are planning documents; V2 business features are not implemented and no implementation slice/provider/deployment is authorized by their completion.
+
 Slice 1 adds provisioned teacher/student course lists and authorized course workspaces to the existing authentication. [Slice 2](docs/slice-2.md) connects profiles/About me; [Slice 3](docs/slice-3.md) adds activity creation; [Slice 4](docs/slice-4.md) adds instruction edits, deadline extensions and safe status reads. [Slice 5](docs/slice-5.md) adds student discovery and deliberate empty-group joining. [Slice 6](docs/slice-6.md) adds private applications, manager decisions and retained history. [Slice 7](docs/slice-7.md) adds invitations and combined request cleanup. [Slice8](docs/slice-8.md) adds durable deadline preparation and saved plans. [Slice9](docs/slice-9.md) adds atomic assignment/finalization and preserved-plan recovery. [Slice10](docs/slice-10.md) adds authorized finalized teacher rosters and student own-group results. [Slice11](docs/slice-11.md) adds safe teacher-only finalized CSV export; administration is outside this V1 scope. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), [Slice 1 evidence](docs/slice-1.md), and [foundation verification record](docs/foundation.md).
 
 ## Prerequisites

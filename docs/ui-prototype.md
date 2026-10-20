@@ -1,5 +1,7 @@
 # V1 UI prototype
 
+**Project-wide amendment (2026-10-19):** The English-only United States university assumption in [Project assumptions](project-assumptions.md) applies to V1, V2, and future requirements, architecture, flows, and acceptance. No multilingual support, translation, localization, or cross-language retrieval is required. This is not a nationality or native-language verification requirement. All deadline entry and display use America/New_York with daylight-saving handling; reject nonexistent and ambiguous wall times. Backend validation compares instants against authoritative database time.
+
 **Status:** Frontend design preview using synthetic in-memory data. This is not business-feature implementation or production authorization. The PRD, user flows, glossary, and approved technical direction remain authoritative. Outstanding Foundation checks remain in `foundation.md` and `hosting-validation.md`.
 
 ## Preview
@@ -16,7 +18,7 @@ The amber preview toolbar is outside the product experience:
 - **Activity state:** changes the Interaction Design fixture between open, finalizing, finalized, and temporarily unavailable. This resets all mock data; it is not a user-facing lifecycle or assignment control. The other course fixtures include finalized and no-activity examples.
 - **Scenarios:** simulate a competing empty-group join, an uncertain response, or an unavailable mock CSV download. Refresh reads the current mock state; it never resubmits a command.
 
-The demo clock is 20 October 2026 at 10:00 Asia/Taipei. Open fixtures have a future deadline; closed fixtures have a past deadline. Browser date-input formatting follows the device locale, but the entered wall time is explicitly Asia/Taipei. Reloading the page clears all interactions.
+The demo clock is 20 October 2026 at 10:00 America/New_York. Open fixtures have a future deadline; closed fixtures have a past deadline. Browser date-input formatting follows the device locale, but the entered wall time is explicitly America/New_York. Reloading the page clears all interactions.
 
 ## Suggested review journeys
 

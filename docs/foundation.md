@@ -1,5 +1,11 @@
 # Initial Project Foundation
 
+**Technical design checkpoint (2026-10-20):** The owner settled eleven V2 architecture choices and core-first delivery; see the [technical design](v2-architecture.md) and [nineteen-slice roadmap](v2-implementation-roadmap.md). This checkpoint changes documentation only. Named providers, real free-tier suitability, pgvector installation/compatibility and all V2 implementation/acceptance remain unverified. No application, Docker, image, provider, CI or hosted check was run for this design; the dated application evidence below remains historical and its open gates remain open.
+
+**V2 planning (2026-10-19):** [PRD](v2-PRD.md), [architecture](v2-architecture.md), [flows](v2-user-flows.md), and [roadmap](v2-implementation-roadmap.md) are complete planning documents. V2 feature/provider/security/quality/performance acceptance is **NOT RUN**; no new implementation or hosted evidence is claimed by document completion. Prior timezone verification below remains the latest recorded application check, not a fresh run for this planning checkpoint.
+
+**2026-10-19 amendment:** Current English-only/New York requirements and the timezone implementation supersede older timezone descriptions. [Current verification](timezone-amendment.md) records the new Docker/Testcontainers environment failure separately from historical local passes; no new full integration or image pass is claimed.
+
 **Current local implementation:** Slices1–12 are implemented and locally verified, including final complete jar/image/prototype acceptance and three independent source reviews. Read [Batch2 evidence](slices-8-12.md) for the latest checkpoint. The initial2026-10-13 sections below are historical: Courses/Results are implemented, and the production scheduler now returns authenticated204 for bounded real allocation work. Remote CI allowance and hosted/operational gates remain open.
 
 **Phase:** Local foundation setup, 2026-10-13. Product behavior remains governed by [PRD.md](PRD.md); technical direction remains governed by [tech-stack.md](tech-stack.md). This work does not implement V1 business workflows or confirm a cloud deployment.
