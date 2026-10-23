@@ -10,7 +10,7 @@ Execute the sequence below. Families V2-0 through V2-9 retain their existing nam
 
 ## 1. Current baseline and evidence boundary
 
-- V1 roadmap records twelve slices locally completed on earlier checkpoints, including actual production allocation, final results, and CSV. The inspected scheduler code invokes production due work and declares 204; **`AGENTS.md` still instructs that it returns 501 until due-work authorization**. Flag and reconcile this existing instruction/code/evidence conflict before a later task relies on scheduler expectations; do not silently amend the instruction or scheduler in this design. Neither response nor historical tests prove current hosted execution.
+- V1 roadmap records twelve slices locally completed on earlier checkpoints, including actual production allocation, final results, and CSV. At this design checkpoint the scheduler declared production 204 but `AGENTS.md` still described pending 501. The owner subsequently authorized V2-0 reconciliation on 2026-10-20: current instructions preserve production 204 and bounded real due work; historical 501 observations remain historical. See [current evidence](v2-0.md). Neither response nor historical tests prove current hosted execution.
 - The separately authorized project-wide timezone amendment changed current requirements and frontend behavior to America/New_York. Its 2026-10-19 evidence is frontend 180 tests/build and prototype Chromium seven passed. Maven verify reported 29 tests, zero assertion failures, seventeen Docker/Testcontainers setup errors; real-backend browser/image verification is outstanding. See [current timezone evidence](timezone-amendment.md).
 - Docker Linux-engine pipe absence was confirmed inside and outside the sandbox at that checkpoint. Do not assume the earlier Docker recovery or a later environment failure is still current: recheck before a new verification claim. The failed check does not erase historical slice evidence or establish a current integration pass.
 - Private GitHub no-cost allowance/actual revised CI, hosted cold starts, unattended scheduling, monitoring, recovery, combined quotas, and deferred backup/resource tuning remain open. See [Foundation](foundation.md) and [hosting validation](hosting-validation.md).
@@ -22,7 +22,7 @@ Statuses: **Not Started**, **In Progress**, **Completed**. A completed planning 
 
 | Slice | Status | Dependencies | Actual evidence / remaining work |
 |---|---|---|---|
-| V2-0. Baseline recovery and acceptance fixtures | Not Started | Existing V1 and timezone amendment | Recheck Docker/current build and current integration/browser/image gates; no new evidence from planning |
+| V2-0. Baseline recovery and acceptance fixtures | Completed | Existing V1 and timezone amendment | 2026-10-20–21 local acceptance: frontend180/build, prototype7, focused timezone25, full Java25/PostgreSQL17 Maven163 (0 failures/errors/skips), jar24; 2026-10-21 current pinned image build/runtime/security and complete image Chromium24 (one worker/zero retries) PASS. UID10001/512MiB/health200/noOOM/restarts0; concurrent ticks preserve allocation state. Old disposable container removed without deleting its volume; new owned containers stopped. Initial failures retained. See [V2-0 evidence](v2-0.md); hosted/private-CI gates remain separate and open |
 | V2-1a. Historical actor integrity and current-manager access | Not Started | V2-0 | Forward migration/current-manager history and decision checks outstanding |
 | V2-1b. Voluntary departure and automatic succession | Not Started | V2-1a | GL-01/02/04/05/06 command/UI/receipt/race checks outstanding |
 | V2-2. Deliberate manager transfer | Not Started | V2-1 | Transfer and combined authority-race checks outstanding |
@@ -42,7 +42,7 @@ Statuses: **Not Started**, **In Progress**, **Completed**. A completed planning 
 | V2-9b. Performance, quota, recovery and core isolation | Not Started | V2-9a | Warm/cold/load/index/rebuild/restart/free-budget evidence outstanding |
 | V2-9c. Combined V2 acceptance and evidence handoff | Not Started | V2-9b, V2-4 | Connected regressions/current image/local acceptance; hosted/CI gates separate |
 
-Family dependencies mean all their child slices: V2-1 = 1a/1b, V2-3 = 3a/3b, V2-6 = 6a–6d, V2-7 = 7a/7b, V2-8 = 8a/8b, and V2-9 = 9a–9c. A family is complete only when every child and its family acceptance checks pass. All nineteen execution slices are **Not Started**; there is no implementation evidence from this design.
+Family dependencies mean all their child slices: V2-1 = 1a/1b, V2-3 = 3a/3b, V2-6 = 6a–6d, V2-7 = 7a/7b, V2-8 = 8a/8b, and V2-9 = 9a–9c. A family is complete only when every child and its family acceptance checks pass. V2-0 alone was subsequently authorized on 2026-10-20; all eighteen later slices remain **Not Started** and require authorization. The design itself supplied no implementation evidence.
 
 V2-5 failing to find a compliant free pair blocks V2-6 onward; it does not invalidate core-feature acceptance. Keep AI disabled and evaluate alternatives with the owner before finalizing a provider, without paid fallback or lowered thresholds. Core-first order is settled; reordering requires a new owner instruction rather than an implementation agent silently moving feasibility earlier.
 

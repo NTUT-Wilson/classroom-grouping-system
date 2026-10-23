@@ -8,9 +8,9 @@ The [PRD](PRD.md) governs product behavior, the [technical stack](tech-stack.md)
 
 ## Progress tracker
 
-The separate [V2 roadmap](v2-implementation-roadmap.md) is finalized as a planning deliverable; all V2 implementation slices are **Not Started**. It does not authorize a new slice, amend historical V1 verification results, or close the timezone/hosting/remote CI gates below.
+The separate [V2 roadmap](v2-implementation-roadmap.md) records V2-0 local acceptance completed on 2026-10-21; all later V2 implementation slices remain **Not Started** and require authorization. The roadmap itself does not authorize a new slice, amend historical V1 verification results, or close hosted/private-CI gates.
 
-**Project-wide timezone follow-up (2026-10-19): In Progress.** America/New_York implementation, DST regression tests, and documentation are updated. Current frontend checks and Docker-blocked integration evidence are tracked in [timezone amendment](timezone-amendment.md); historical slice completion below is not verification of this amendment.
+**Project-wide timezone follow-up: Completed locally, 2026-10-21.** America/New_York frontend/unit/build, real PostgreSQL integration, complete jar24 and current image24 workflows pass, including winter/summer/DST/device-zone/saved-instant checks. [Timezone amendment](timezone-amendment.md) preserves initial failures and exact dated evidence; hosted/private-CI gates remain separate. Historical V1 slice passes below are not substituted for amendment verification.
 
 Allowed statuses: **Not Started**, **In Progress**, **Completed**. Mark a slice Completed only when its deliverables and acceptance criteria have supporting verification evidence; record unresolved checks separately. Existing Foundation and mock prototype work do not count as completed business slices.
 

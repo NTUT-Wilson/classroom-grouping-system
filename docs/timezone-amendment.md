@@ -1,5 +1,9 @@
 # Project-wide timezone amendment
 
+**Local amendment acceptance complete — 2026-10-21:** Current pinned image build/runtime and the entire image Chromium24 suite passed on fresh PostgreSQL17.11 (one worker,zero retries,3.4m), including winter/summer offsets, creation/extension DST rejection without requests, saved-instant preservation and Honolulu/Taipei device-zone display checks. This completes the image gate alongside the earlier dated frontend180/build,full Maven163/ArchUnit/PostgreSQL,jar24,prototype7 and focused Honolulu25 passes; those unrelated suites were not rerun in the image-only continuation. Historical failures below are retained. [V2-0 evidence](v2-0.md) records runtime/security, snapshots, artifacts and safe cleanup. No stored-deadline rewrite, migration or product change; hosted/private-CI gates remain separate and open.
+
+**Earlier current evidence (historical) — 2026-10-20–21:** Following the retained initial Docker failures below, normal Desktop startup enabled PASS full Java25/PostgreSQL17.11 Maven163 (0 failures/errors/skips) and complete current packaged-jar Chromium24 (one worker/zero retries,3.4m). New `frontend/e2e/v2-baseline.spec.ts` proves winter15:00Z/summer14:00Z for10:00 New York, both DST rejections without requests at creation/extension, saved instant preservation on reload/editor opening and teacher/student displays in Honolulu/Taipei browser contexts. Existing database-clock/cutoff-lock tests passed. Lead's built-in browser additionally observed spring-gap rejection in a canceled unsaved draft. Frontend180/build, prototype7, focused Honolulu25 pass. Docker later lost its pipe; image build could not start, and a second normal Desktop startup on2026-10-21 hit `sailor-ingest.sock` access failure. Revised image/runtime/browser acceptance was pending at that checkpoint and subsequently completed on 2026-10-21 as recorded above; no stored instant rewrite/migration/reset/native substitute. See [V2-0 commands and artifacts](v2-0.md). Hosted/CI gates remain separate and open.
+
 Authorized on 2026-10-19 during V2 discovery: replace the university timezone with America/New_York across V1, V2, and future versions, including relevant implementation and tests. Other V2 features remain in requirements discovery.
 
 ## Changes
@@ -10,9 +14,11 @@ The backend already accepts offset-bearing timestamps, persists instants, and va
 
 Current requirements, architecture, flows, roadmap, prototype guide, and manual acceptance instructions use New York. Historical slice reports retain their actual past timezone and verification evidence; they do not establish current amendment verification.
 
-Unit coverage includes winter and summer offsets, invalid dates, spring gap/fall overlap rejection, times on both sides of each transition, saved-instant conversion, and invalid extension submission without a request. Real-backend browser expectations use New York labels and matching saved UTC instants; those workflows still require execution.
+Unit coverage includes winter and summer offsets, invalid dates, spring gap/fall overlap rejection, times on both sides of each transition, saved-instant conversion, and invalid extension submission without a request. The complete current packaged-jar Chromium suite passed all 24 workflows on 2026-10-20–21, including New York labels and matching saved UTC instants; the current pinned image build/runtime/security checks and complete image Chromium24 suite also passed on 2026-10-21 as recorded in the completed local acceptance above.
 
 ## Verification — 2026-10-19
+
+The following checkpoint is historical. See the latest 2026-10-20–21 evidence above for current results.
 
 - PASS: Final frontend single-worker test run: 180 tests across ten files, followed by the final TypeScript/Vite build after all implementation changes.
 - PASS: Content/diff review (`git diff --check`); only line-ending normalization warnings.
@@ -20,3 +26,9 @@ Unit coverage includes winter and summer offsets, invalid dates, spring gap/fall
 - FAIL — environment: Java 25 Maven Wrapper verify attempted; 29 tests reported, zero assertion failures, seventeen Docker/Testcontainers setup errors. Docker Linux-engine named pipe is unavailable, confirmed both inside and outside the sandbox. This is not a full integration pass.
 - NOT RUN: real-backend browser workflows and revised container validation, blocked by unavailable Docker engine. No persistent database reset, substitute native-database verification, or deployment.
 - Remote CI allowance, hosted validation, unattended scheduling, monitoring, recovery, quotas, and deferred backup/tuning gates remain open.
+
+## Initial V2-0 attempt (historical) — 2026-10-20
+
+On clean `codex/v2-batch-1` at `e18037e` plus uncommitted V2-0 fixture/docs changes, Windows/Node24.16.0/Temurin25.0.4.1: PASS `npm test`180 across10 files and `npm run build`; PASS complete prototype Chromium7, one worker/zero retries; PASS focused `TZ=Pacific/Honolulu npm test -- src/Activity.test.tsx src/ActivitySettings.test.tsx`25 across2 files. These cover seasonal offsets, invalid dates, both DST rejection cases and transition boundaries, saved-instant conversion, creation/extension and timestamp rendering independently of the device zone. Initial sandbox frontend run stalled before results and was interrupted; the supported elevated run passed. Logs/configuration are in [V2-0 evidence](v2-0.md).
+
+FAIL/environment at this initial attempt, before recovery: full Java25 `.\mvnw.cmd verify` compiled but reported29 tests,0 assertion failures,17 Docker/Testcontainers setup errors,0 skips; packaging did not complete. Docker Linux-engine pipe was absent inside and outside sandbox. Final fixture test recompilation succeeded but PostgreSQL setup failed. Backend/database-time eligibility, saved-instant persistence and complete real-backend New York workflows were NOT RUN at that point; revised image/runtime checks were also NOT RUN. No stored instant rewrite, migration, native database substitution or deployment occurred. Image/runtime/browser acceptance was pending at this initial checkpoint; the completed local acceptance above records the subsequent Maven163, jar Chromium24 and 2026-10-21 image/runtime/security/Chromium24 passes. Hosted/private-CI gates remain separate and open.

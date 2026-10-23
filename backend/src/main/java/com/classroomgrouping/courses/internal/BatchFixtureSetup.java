@@ -31,6 +31,20 @@ class BatchFixtureSetup {
                 students.add(username);
                 accounts.add(new SeedAccount(username, password, "STUDENT", "0000700" + i, names.get(i - 1)));
             }
+            // V2 uses separate English identities; legacy Unicode fixtures remain unchanged.
+            accounts.add(new SeedAccount("v2-teacher", password, "TEACHER", null, null));
+            accounts.add(new SeedAccount("v2-co-teacher", password, "TEACHER", null, null));
+            accounts.add(new SeedAccount("v2-outsider-teacher", password, "TEACHER", null, null));
+            var v2Students = new ArrayList<String>();
+            var v2Names = List.of("Alex Fixture", "Blair Fixture", "Casey Fixture", "Devon Fixture",
+                    "Ellis Fixture", "Frankie Fixture", "Gray Fixture", "Harper Fixture");
+            for (int i = 1; i <= 8; i++) {
+                var username = "v2-student-" + i;
+                v2Students.add(username);
+                accounts.add(new SeedAccount(username, password, "STUDENT", "0000800" + i, v2Names.get(i - 1)));
+            }
+            accounts.add(new SeedAccount("v2-outsider-student", password, "STUDENT", "00008009", "Indigo Outsider"));
+            accounts.add(new SeedAccount("v2-late-student", password, "STUDENT", "00008010", "Jamie Late"));
             provisioning.provision(new Roster(accounts, List.of(
                     new SeedCourse("BATCH-101", "Batch Profile Classroom", List.of("batch-teacher"), students),
                     new SeedCourse("BATCH-202", "Batch Separate Classroom", List.of("batch-teacher"), students.subList(0, 2)),
@@ -44,7 +58,11 @@ class BatchFixtureSetup {
                     new SeedCourse("BATCH-707", "Batch Invitations Classroom", List.of("batch-teacher"), students),
                     new SeedCourse("BATCH-1001", "Batch Results Classroom", List.of("batch-teacher"), students),
                     new SeedCourse("BATCH-1002", "Batch Results Cutoff Classroom", List.of("batch-teacher"), students.subList(0, 4)),
-                    new SeedCourse("BATCH-708", "Batch Invitations Cutoff Classroom", List.of("batch-teacher"), students.subList(0, 4)))));
+                    new SeedCourse("BATCH-708", "Batch Invitations Cutoff Classroom", List.of("batch-teacher"), students.subList(0, 4)),
+                    new SeedCourse("V2-101", "V2 Lifecycle Classroom", List.of("v2-teacher", "v2-co-teacher"), v2Students),
+                    new SeedCourse("V2-202", "V2 No Activity Classroom", List.of("v2-teacher", "v2-co-teacher"), v2Students),
+                    new SeedCourse("V2-404", "V2 Cutoff Classroom", List.of("v2-teacher", "v2-co-teacher"), v2Students),
+                    new SeedCourse("V2-303", "V2 Other Classroom", List.of("v2-outsider-teacher"), List.of("v2-outsider-student")))));
         };
     }
 }
