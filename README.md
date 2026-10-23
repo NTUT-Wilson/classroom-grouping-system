@@ -2,6 +2,10 @@
 
 Local implementation of the approved V1 modular monolith. React + Vite + TypeScript, Java 25 / Spring Boot 4.1.1, PostgreSQL, Flyway, and Spring Security with JDBC-backed sessions.
 
+The [project-wide assumptions](docs/project-assumptions.md) require English-only operation and `America/New_York` deadline entry/display across all versions. Daylight-saving gaps and repeated wall times are rejected; stored deadline instants remain unchanged. See [timezone verification](docs/timezone-amendment.md) for current checks and blockers.
+
+V2 requirements are defined in the [V2 PRD](docs/v2-PRD.md), [RAG architecture](docs/v2-architecture.md), [user flows](docs/v2-user-flows.md), and [implementation roadmap](docs/v2-implementation-roadmap.md). They cover group departure/manager succession and transfer, announcements, and a separately gated free-only course assistant. They are planning documents; V2 business features are not implemented and no implementation slice/provider/deployment is authorized by their completion.
+
 Slice 1 adds provisioned teacher/student course lists and authorized course workspaces to the existing authentication. [Slice 2](docs/slice-2.md) connects profiles/About me; [Slice 3](docs/slice-3.md) adds activity creation; [Slice 4](docs/slice-4.md) adds instruction edits, deadline extensions and safe status reads. [Slice 5](docs/slice-5.md) adds student discovery and deliberate empty-group joining. [Slice 6](docs/slice-6.md) adds private applications, manager decisions and retained history. [Slice 7](docs/slice-7.md) adds invitations and combined request cleanup. [Slice8](docs/slice-8.md) adds durable deadline preparation and saved plans. [Slice9](docs/slice-9.md) adds atomic assignment/finalization and preserved-plan recovery. [Slice10](docs/slice-10.md) adds authorized finalized teacher rosters and student own-group results. [Slice11](docs/slice-11.md) adds safe teacher-only finalized CSV export; administration is outside this V1 scope. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), [Slice 1 evidence](docs/slice-1.md), and [foundation verification record](docs/foundation.md).
 
 ## Prerequisites
@@ -76,6 +80,8 @@ Students can open the course's Classmates tab (`#/courses/<course-UUID>/classmat
 ### Isolated batch browser fixtures
 
 `APP_BATCH_FIXTURE_ENABLED=true` (or `--app.batch-fixture.enabled=true`) separately opts into synthetic BATCH courses for isolated acceptance workflows. Supply `BATCH_FIXTURE_PASSWORD` server-side (12+ characters, at most 72 UTF-8 bytes). Accounts are `batch-teacher` and `batch-student-1` through `batch-student-8`. BATCH-101/505/606/707/1001 have eight students; BATCH-202/404/405/506 have the first two; BATCH-607/708/1002 have the first four; BATCH-303 has no students. Setup is additive and idempotent, preserves existing identities/passwords/history, and creates no activities. Use a disposable local database for acceptance journeys and disable the flag after setup. The original DEMO courses remain separate.
+
+The same batch opt-in adds separate English V2 acceptance actors/courses, preserving original BATCH identities and Unicode cases. `v2-teacher` and `v2-co-teacher` share V2-101 (Lifecycle), V2-202 (No Activity), and V2-404 (Cutoff), with `v2-student-1` through `v2-student-8`. `v2-outsider-teacher` and `v2-outsider-student` belong only to V2-303 (Other); `v2-late-student` starts unenrolled. All use the server-only batch password on first creation. Provisioning creates no activity or request and never resets them. See [V2-0 evidence and fixture matrix](docs/v2-0.md) for test-only state setup and future proof layers; these fixtures do not implement V2 lifecycle or announcement behavior.
 
 For frontend hot reload, use a second terminal:
 

@@ -33,7 +33,7 @@ async function post(page: Page, id: string, body: unknown, csrf = true) {
 }
 async function fill(page: Page, capacities: number[], instructions: string) {
   await page.getByLabel('Instructions', { exact: true }).fill(instructions)
-  await page.getByLabel('Deadline (Asia/Taipei)', { exact: true }).fill('2099-03-15T14:30')
+  await page.getByLabel('Deadline (America/New_York)', { exact: true }).fill('2099-03-15T14:30')
   for (let i = 0; i < capacities.length; i++) {
     if (i) await page.getByRole('button', { name: 'Add group', exact: true }).click()
     await page.getByLabel(`Group ${i + 1} capacity`, { exact: true }).fill(String(capacities[i]))
@@ -43,7 +43,7 @@ async function noOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 }
 
-test('teacher reviews and creates once; students immediately see exact fixed groups with Taipei deadline independent of browser timezone', async ({ browser }, testInfo) => {
+test('teacher reviews and creates once; students immediately see exact fixed groups with New York deadline independent of browser timezone', async ({ browser }, testInfo) => {
   // Multiple real sessions and screenshots need a journey budget under concurrent browser workers.
   test.slow()
   const teacher = await browser.newContext({ timezoneId: 'America/Los_Angeles', viewport: { width: 390, height: 844 } })
@@ -76,8 +76,8 @@ test('teacher reviews and creates once; students immediately see exact fixed gro
     await expect(t.getByText('Activity created. It is now visible to course participants.', { exact: true })).toBeVisible()
     const saved = (await read(t, target.id)).activity!
     expect(saved.instructions).toBe('  <script>plain text</script>\nWork together 😀  ')
-    expect(saved.deadline).toBe('2099-03-15T06:30:00Z')
-    await expect(t.locator('time')).toHaveText(/15 Mar 2099.*14:30.*Asia\/Taipei/)
+    expect(saved.deadline).toBe('2099-03-15T18:30:00Z')
+    await expect(t.locator('time')).toHaveText(/15 Mar 2099.*14:30.*America\/New_York/)
     expect(saved.status).toBe('OPEN')
     expect(saved.groups.map(g => [g.ordinal, g.name, g.capacity])).toEqual([
       [1, 'Group 1', 2], [2, 'Group 2', 2], [3, 'Group 3', 2], [4, 'Group 4', 2],
@@ -90,7 +90,7 @@ test('teacher reviews and creates once; students immediately see exact fixed gro
     await s.goto(`/#/courses/${target.id}`)
     await expect(s.getByText('<script>plain text</script>\nWork together 😀', { exact: false })).toBeVisible()
     expect((await read(s, target.id)).activity).toEqual(saved)
-    await expect(s.locator('time')).toHaveText(/15 Mar 2099.*14:30.*Asia\/Taipei/)
+    await expect(s.locator('time')).toHaveText(/15 Mar 2099.*14:30.*America\/New_York/)
     await expect(s.getByRole('button', { name: 'Create activity', exact: true })).toHaveCount(0)
     const denied = await post(s, target.id, { commandKey: crypto.randomUUID(), instructions: 'denied', deadline: saved.deadline, capacities: [8] })
     expect(denied.status()).toBe(403)
@@ -109,7 +109,7 @@ test('lost committed creation response reconciles by reads without replay and in
     await login(t, 'batch-teacher'); await login(o, 'batch-student-8')
     const target = await course(t, 'BATCH-202'); const empty = await course(t, 'BATCH-303')
     expect((await read(t, target.id)).activity).toBeNull()
-    const body = { commandKey: crypto.randomUUID(), instructions: 'Validation', deadline: '2099-03-15T06:30:00Z', capacities: [2] }
+    const body = { commandKey: crypto.randomUUID(), instructions: 'Validation', deadline: '2099-03-15T18:30:00Z', capacities: [2] }
     expect((await post(t, target.id, body, false)).status()).toBe(403)
     // The student role is rejected before teacher-only course authorization.
     expect((await post(o, target.id, body)).status()).toBe(403)

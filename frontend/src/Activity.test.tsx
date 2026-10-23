@@ -1,11 +1,12 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
-import { CourseActivity, capacityError, instructionsError, taipeiDeadline } from './Activity'
+import { CourseActivity, capacityError, instructionsError, universityDeadline } from './Activity'
 import * as api from './api'
+import { universityWallTime } from './universityTime'
 vi.mock('./api', async importOriginal => ({ ...await importOriginal<typeof api>(), getActivity: vi.fn(), createActivity: vi.fn() }))
 const course = { id: 'course-one', code: 'C1', name: 'Computing' }
-const activity: api.Activity = { id: 'a', courseId: course.id, instructions: '<script>plain</script>\nKeep spaces  ', deadline: '2099-10-20T02:00:00Z', status: 'OPEN', groups: [{ id: 'g1', ordinal: 1, name: 'Group 1', capacity: 2 }, { id: 'g2', ordinal: 2, name: 'Group 2', capacity: 4 }] }
+const activity: api.Activity = { id: 'a', courseId: course.id, instructions: '<script>plain</script>\nKeep spaces  ', deadline: '2099-10-20T14:00:00Z', status: 'OPEN', groups: [{ id: 'g1', ordinal: 1, name: 'Group 1', capacity: 2 }, { id: 'g2', ordinal: 2, name: 'Group 2', capacity: 4 }] }
 beforeEach(() => {
   vi.resetAllMocks()
   vi.mocked(api.getActivity).mockResolvedValue({ activity: null, enrolledCount: 6 })
@@ -21,7 +22,7 @@ async function setup() {
   await user.type(screen.getByLabelText('Group 2 capacity'), '4')
   // Browser datetime-local input supplies a wall time, never a device-local instant.
   const { fireEvent } = await import('@testing-library/react')
-  fireEvent.change(screen.getByLabelText('Deadline (Asia/Taipei)'), { target: { value: '2099-10-20T10:00' } })
+  fireEvent.change(screen.getByLabelText('Deadline (America/New_York)'), { target: { value: '2099-10-20T10:00' } })
   await user.click(screen.getByRole('button', { name: 'Review activity' }))
   return user
 }
@@ -37,23 +38,33 @@ test('manual capacities require a nonempty integer layout and exact enrollment t
   for (const layout of [[], [''], ['1', '5'], ['2.5', '3.5'], ['2e0', '4'], ['+2', '4'], ['2 ', '4'], ['3', '4'], ['999999999999999999999']]) expect(capacityError(layout, 6)).not.toBe('')
   expect(capacityError(['2'], 1)).toContain('At least two')
 })
-test('Taipei wall time has a fixed offset independent of device timezone and rejects impossible dates', () => {
-  expect(taipeiDeadline('2099-10-20T10:00')).toBe('2099-10-20T10:00:00+08:00')
-  expect(Date.parse(taipeiDeadline('2099-10-20T10:00')!)).toBe(Date.parse('2099-10-20T02:00:00Z'))
-  for (const value of ['', '2099-02-30T10:00', '2099-13-01T10:00', '2099-10-20T24:00', '2099-10-20T10:00Z']) expect(taipeiDeadline(value)).toBeNull()
+test('New York wall time uses daylight-saving offsets independent of device timezone and rejects impossible dates', () => {
+  expect(universityDeadline('2099-10-20T10:00')).toBe('2099-10-20T10:00:00-04:00')
+  expect(Date.parse(universityDeadline('2099-10-20T10:00')!)).toBe(Date.parse('2099-10-20T14:00:00Z'))
+  for (const value of ['', '2099-02-30T10:00', '2099-13-01T10:00', '2099-10-20T24:00', '2099-10-20T10:00Z']) expect(universityDeadline(value)).toBeNull()
+  expect(universityDeadline('2027-01-15T10:00')).toBe('2027-01-15T10:00:00-05:00')
+  expect(universityDeadline('2027-07-15T10:00')).toBe('2027-07-15T10:00:00-04:00')
+  expect(universityDeadline('2027-03-14T02:30')).toBeNull()
+  expect(universityDeadline('2027-11-07T01:30')).toBeNull()
+  expect(universityDeadline('2027-03-14T01:59')).toBe('2027-03-14T01:59:00-05:00')
+  expect(universityDeadline('2027-03-14T03:00')).toBe('2027-03-14T03:00:00-04:00')
+  expect(universityDeadline('2027-11-07T00:59')).toBe('2027-11-07T00:59:00-04:00')
+  expect(universityDeadline('2027-11-07T02:00')).toBe('2027-11-07T02:00:00-05:00')
+  expect(universityWallTime('2027-01-15T15:00:00Z')).toBe('2027-01-15T10:00')
+  expect(universityWallTime('2027-07-15T14:00:00Z')).toBe('2027-07-15T10:00')
 })
 test('creation requires explicit review and confirmation, preserves ordered layout/text and sends fresh UUID command', async () => {
   const user = await setup()
   expect(screen.getByRole('heading', { name: 'Ready to open grouping?' })).toHaveFocus()
   expect(api.createActivity).not.toHaveBeenCalled()
-  expect(screen.getByText(/20 Oct 2099, 10:00/)).toHaveTextContent('Asia/Taipei')
+  expect(screen.getByText(/20 Oct 2099, 10:00/)).toHaveTextContent('America/New_York')
   expect(screen.getAllByRole('listitem').map(item => item.textContent)).toEqual(['Group 12 places', 'Group 24 places'])
   await user.click(screen.getByRole('button', { name: 'Back to setup' }))
   expect(screen.getByLabelText('Instructions')).toHaveValue('Task <script>plain</script>\nKeep spaces  ')
   await user.click(screen.getByRole('button', { name: 'Review activity' }))
   await user.click(screen.getByRole('button', { name: 'Confirm create activity' }))
   await screen.findByText('Activity created. It is now visible to course participants.')
-  expect(api.createActivity).toHaveBeenCalledExactlyOnceWith(course.id, { commandKey: expect.stringMatching(/^[0-9a-f-]{36}$/), instructions: 'Task <script>plain</script>\nKeep spaces  ', deadline: '2099-10-20T10:00:00+08:00', capacities: [2, 4] })
+  expect(api.createActivity).toHaveBeenCalledExactlyOnceWith(course.id, { commandKey: expect.stringMatching(/^[0-9a-f-]{36}$/), instructions: 'Task <script>plain</script>\nKeep spaces  ', deadline: '2099-10-20T10:00:00-04:00', capacities: [2, 4] })
   expect(screen.queryByRole('button', { name: 'Create activity' })).not.toBeInTheDocument()
 })
 test('uncertain creation blocks resubmission until a successful read shows committed activity', async () => {

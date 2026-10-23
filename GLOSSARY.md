@@ -4,8 +4,17 @@ The language used to describe courses and student team formation in the Classroo
 
 ## Language
 
+**Course announcement**:
+A teacher-published notice belonging to one course, with a title and plain-text body. In V2, assigned course teachers manage these notices and currently enrolled students may read them.
+
+**Course assistant**:
+The V2 English-only question-answering assistant scoped to one selected course, using permitted announcements, activity instructions/settings, and grouping rules with source citations. It cannot perform grouping or course-management actions.
+
+**Grouping rules**:
+The system-enforced conditions governing group participation and lifecycle, interpreted together with the selected activity's current settings. They are distinct from teacher-written activity instructions and announcements.
+
 **Course**:
-A teaching context with assigned teachers and enrolled students. A course may have zero or one grouping activity in V1.
+A teaching context with assigned teachers and enrolled students. A course may have zero or one grouping activity in V1 and V2.
 
 **Grouping activity**:
 A course-specific exercise in which students form groups under teacher-configured rules.
@@ -42,14 +51,20 @@ The teacher's manually entered list of predetermined group capacities for a grou
 A student's established belonging to a group within a grouping activity. A student has at most one such membership at a time in that activity; a pending application or invitation is not a membership.
 
 **Group manager**:
-The initial student who deliberately joins an empty system-created group and becomes its member. This student alone may decide its applications and send invitations, without transfer or delegation in V1; groups first populated by post-deadline system assignment have no manager.
+The current group member authorized to decide its applications and send invitations, initially appointed by deliberately joining an empty system-created group. V1 retains that initial manager; V2 also permits pre-cutoff transfer and random succession on manager departure, while groups first populated by post-deadline system assignment remain managerless.
 _Avoid_: Group creator (the system creates groups)
+
+**Manager transfer**:
+The current manager's explicit handover of group authority to another current member before the grouping cutoff in V2. The recipient does not need to accept, and the former manager remains a member.
+
+**Manager succession**:
+The automatic appointment of a randomly selected remaining member when a group manager voluntarily leaves before cutoff in V2. It is distinct from a deliberate manager transfer and does not require acceptance.
 
 **Ordinary group member**:
 A student who belongs to a group and is not its group manager.
 
 **Member removal**:
-Ending an existing student's membership by an action taken by someone else. Group managers cannot perform it in V1; it is distinct from rejecting a pending application and from a member choosing to leave.
+Ending an existing student's membership by an action taken by someone else. It is excluded from V1 and V2 and is distinct from rejecting a pending application or choosing to leave one's own group.
 
 **Grouped student**:
 A student with a group membership in the grouping activity being discussed.
@@ -62,13 +77,13 @@ An ungrouped student's request to join an occupied group with a manager and avai
 _Avoid_: Membership (when referring to a pending request)
 
 **Pending application**:
-A join application awaiting its outcome, without establishing membership or reserving a group place. Its applicant cannot manually withdraw it in V1; automatic cancellation upon joining still applies.
+A join application awaiting its outcome, without establishing membership or reserving a group place. Its applicant cannot manually withdraw it in V1 or V2; automatic lifecycle cancellation still applies.
 
 **Pending request**:
 A join application or group invitation awaiting its outcome, without membership or a reserved group place. One application and one invitation may be pending for the same student and group; successful joining cancels the still-pending counterpart.
 
 **Request history**:
-The completed application and invitation attempts, with their outcomes and cancellation reasons, retained for their two authorized parties to read. A later attempt or the grouping cutoff does not erase that history or make it a current membership record.
+Completed application and invitation attempts with their original actors, outcomes, and cancellation reasons, distinct from current membership. In V2, the applicant or recipient and the group's current manager may read permitted attempts; former managers retain no group-management access solely because they once handled or sent a request.
 
 **Reapplication**:
 A subsequent request by a student to join the same group after an earlier application has ended. V1 permits it after rejection, subject to current eligibility and at most one pending application for that student and group; every new attempt still requires current eligibility.
@@ -78,7 +93,7 @@ An offer from a group's manager to an ungrouped classmate to join the group, whi
 _Avoid_: Join application (when referring to an offer sent by the group rather than a request from an applicant)
 
 **Pending invitation**:
-A group invitation awaiting its outcome, without establishing membership or reserving a place. The sending group manager cannot manually cancel it in V1; recipient responses and automatic cancellation upon joining remain subject to current rules.
+A group invitation awaiting its outcome, without establishing membership or reserving a place. A group manager cannot manually cancel it in V1 or V2; recipient responses and automatic lifecycle cancellation remain subject to current rules.
 
 **Reinvitation**:
 A subsequent invitation from a group's manager to the same student after an earlier invitation has ended. V1 permits it after rejection, subject to current eligibility and at most one pending invitation for the group and recipient; every new attempt still requires current eligibility.
@@ -112,7 +127,7 @@ A CSV download of the finalized activity roster available to its assigned teache
 A group whose current membership count equals its fixed capacity, with no remaining places. V1 rejects new applications and invitations to it; when its last place is filled, other students' requests still pending after the joining student's cleanup are system-canceled with reason "Group full".
 
 **System-canceled request**:
-A pending join application or group invitation closed automatically because its student joined a group in the same activity or its target group filled its last place. Its reason distinguishes joining from "Group full"; neither is a person's rejection or deadline expiry.
+A pending join application or group invitation closed automatically because its student joined a group in the same activity, its target group filled its last place, or, in V2, its target group became empty through departure. The reason distinguishes joining, "Group full", and "Group empty" from a person's rejection or deadline expiry.
 _Avoid_: Rejected request (when closure resulted from joining a group)
 
 **Rejected request**:
@@ -120,4 +135,10 @@ A join application declined by the group manager, or a group invitation declined
 _Avoid_: System-canceled request (when a person declined the request)
 
 **Voluntary group departure**:
-A member's choice to end their own group membership. It is temporarily excluded from V1 for both ordinary members and managers, and prioritized for V2 with detailed rules still undecided.
+A member's choice to end their own group membership, excluded from V1 and permitted without approval before the grouping cutoff in V2. It does not reserve another place, remove activity participation, or guarantee a different group during system assignment.
+
+**Course source**:
+Permitted course content used to ground an assistant answer: a current announcement, activity instructions or settings, or an application-maintained grouping-rule section. It excludes student identity/profile, membership, request, and roster records.
+
+**Source citation**:
+A reference connecting an assistant's factual answer to a permitted course source or rule section. Opening it remains subject to current access and shows current content or changed/unavailable feedback.
