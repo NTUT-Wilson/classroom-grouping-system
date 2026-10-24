@@ -1,5 +1,7 @@
 # Initial Project Foundation
 
+**Isolated V1 demo release — 2026-10-24:** [Release evidence](v1-demo-release.md) records `codex/v1-interview-demo` based on `ec09128`, with only the approved New York timezone runtime amendment and associated tests/docs. PASS current frontend180/build, full Java25/PostgreSQL17 Maven163 (zero failures/errors/skips), complete jar23/image23 Chromium (one worker/zero retries), prototype7, image UID10001/512MiB/scheduler401-204/no OOM-restarts and original V2 file-hash preservation. Corrected bootstrap/Windows-port/wrapper-line-ending failures are retained. Owned services stopped; data retained. No push, cloud provisioning, deployment or paid execution. Hosted/private-CI/operational gates remain open.
+
 **Current local implementation:** Slices1–12 are implemented and locally verified, including final complete jar/image/prototype acceptance and three independent source reviews. Read [Batch2 evidence](slices-8-12.md) for the latest checkpoint. The initial2026-10-13 sections below are historical: Courses/Results are implemented, and the production scheduler now returns authenticated204 for bounded real allocation work. Remote CI allowance and hosted/operational gates remain open.
 
 **Phase:** Local foundation setup, 2026-10-13. Product behavior remains governed by [PRD.md](PRD.md); technical direction remains governed by [tech-stack.md](tech-stack.md). This work does not implement V1 business workflows or confirm a cloud deployment.

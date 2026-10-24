@@ -27,7 +27,7 @@ test('private history preserves Unicode, leading zeros and plain text with no ro
   expect(screen.getByText('Exact About me 😀')).toBeInTheDocument()
   expect(container.querySelector('script')).toBeNull()
   expect(screen.queryByRole('button', { name: /Approve|Reject|Withdraw|Leave|Remove|Invite/i })).not.toBeInTheDocument()
-  expect(screen.getByText(/Asia\/Taipei/)).toBeInTheDocument()
+  expect(screen.getByText(/America\/New_York/)).toBeInTheDocument()
 })
 test.each(['Approve', 'Reject'] as const)('%s requires explicit confirmation, supports cancel focus, and records a new command', async action => {
   const user = userEvent.setup(); mount()

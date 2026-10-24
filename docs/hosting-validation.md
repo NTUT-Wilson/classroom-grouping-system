@@ -1,5 +1,7 @@
 # Foundation hosting validation
 
+**Isolated V1 demo release — 2026-10-24:** [Release evidence](v1-demo-release.md) records `codex/v1-interview-demo` based on `ec09128`, with only the approved New York timezone runtime amendment and associated tests/docs. PASS current frontend180/build, full Java25/PostgreSQL17 Maven163 (zero failures/errors/skips), complete jar23/image23 Chromium (one worker/zero retries), prototype7, image UID10001/512MiB/scheduler401-204/no OOM-restarts and original V2 file-hash preservation. Corrected bootstrap/Windows-port/wrapper-line-ending failures are retained. Owned services stopped; data retained. No push, cloud provisioning, deployment or paid execution. Hosted/private-CI/operational gates remain open.
+
 **Status: preparation complete; hosted execution blocked by account access.** This is a validation checklist for the approved provisional Render Free + Neon Free direction, not a deployment record or a new product requirement. No paid service or scheduler provider is selected here. Use synthetic accounts and disposable probe data only.
 
 Local implementation now includes durable allocation, final results and CSV; see [Batch2 evidence](slices-8-12.md). The dated provider/access observations below remain historical and do not establish current account allowances or hosted suitability.

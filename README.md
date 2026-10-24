@@ -4,6 +4,8 @@ Local implementation of the approved V1 modular monolith. React + Vite + TypeScr
 
 Slice 1 adds provisioned teacher/student course lists and authorized course workspaces to the existing authentication. [Slice 2](docs/slice-2.md) connects profiles/About me; [Slice 3](docs/slice-3.md) adds activity creation; [Slice 4](docs/slice-4.md) adds instruction edits, deadline extensions and safe status reads. [Slice 5](docs/slice-5.md) adds student discovery and deliberate empty-group joining. [Slice 6](docs/slice-6.md) adds private applications, manager decisions and retained history. [Slice 7](docs/slice-7.md) adds invitations and combined request cleanup. [Slice8](docs/slice-8.md) adds durable deadline preparation and saved plans. [Slice9](docs/slice-9.md) adds atomic assignment/finalization and preserved-plan recovery. [Slice10](docs/slice-10.md) adds authorized finalized teacher rosters and student own-group results. [Slice11](docs/slice-11.md) adds safe teacher-only finalized CSV export; administration is outside this V1 scope. See [the PRD](docs/PRD.md), [approved technical design](docs/tech-stack.md), [Slice 1 evidence](docs/slice-1.md), and [foundation verification record](docs/foundation.md).
 
+The isolated interview release includes only the approved America/New_York timezone amendment on the V1 acceptance baseline. See [release contents and verification](docs/v1-demo-release.md).
+
 ## Prerequisites
 
 - Temurin Java 25 on `JAVA_HOME` / `PATH`.

@@ -88,7 +88,7 @@ test('teacher has no live progress, may edit closed instructions, and can downlo
   await expect(workspace(page)).not.toContainText('Noah Wu')
   await expect(tab(page, 'Requests')).toHaveCount(0)
   await page.getByRole('button', { name: 'Extend deadline' }).click()
-  await page.getByLabel('New deadline · Asia/Taipei (UTC+8)').fill('2026-10-22T17:00')
+  await page.getByLabel('New deadline · America/New_York').fill('2026-10-22T17:00')
   await page.getByRole('button', { name: 'Save changes' }).click()
   await expect(page.getByRole('alert')).toContainText('later than')
   await page.getByRole('button', { name: 'Close dialog' }).click()

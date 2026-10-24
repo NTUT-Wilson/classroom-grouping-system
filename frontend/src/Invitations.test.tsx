@@ -20,9 +20,9 @@ async function respond(user: ReturnType<typeof userEvent.setup>, decision = 'acc
   await user.click(await screen.findByRole('button', { name: decision === 'acceptance' ? 'Accept invitation' : 'Reject invitation' }))
   await user.click(screen.getByRole('button', { name: `Confirm ${decision}` }))
 }
-test('recipient sees private profiles as plain text, leading zero IDs and Taipei dates', async () => {
+test('recipient sees private profiles as plain text, leading zero IDs and New York dates', async () => {
   const { container } = mount(); await screen.findByText('Recipient · ' + recipient.studentName)
-  expect(screen.getByText('Student ID · 00002')).toBeInTheDocument(); expect(screen.getByText(/Asia\/Taipei/)).toBeInTheDocument(); expect(container.querySelector('script')).toBeNull()
+  expect(screen.getByText('Student ID · 00002')).toBeInTheDocument(); expect(screen.getByText(/America\/New_York/)).toBeInTheDocument(); expect(container.querySelector('script')).toBeNull()
   expect(screen.queryByRole('button', { name: /^Invite / })).not.toBeInTheDocument()
 })
 test.each(['acceptance', 'rejection'])('%s is explicit and cancel restores focus', async decision => {

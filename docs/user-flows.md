@@ -1,5 +1,7 @@
 # V1 User Flows
 
+**Approved timezone amendment (2026-10-19):** Deadline entry/display uses America/New_York with seasonal offsets, independent of device timezone. Reject nonexistent and repeated daylight-saving wall times. Preserve stored instants and database-clock cutoff checks. See [release evidence](v1-demo-release.md).
+
 **Product scope status:** V1 scope and these supporting flows confirmed by the user on 2026-10-12; product grilling is complete. Technical design and diagram revalidation remain pending. This closure does not authorize implementation, project initialization, or deployment.
 
 
@@ -15,7 +17,7 @@ Applications are readable only by their applicant and the target group's manager
 
 **Q63 — Current description only:** Users see only the latest saved activity description. V1 provides no user-facing description version history or restore feature; this does not remove the separate request history confirmed under Q67.
 
-**Q64 — Declared deadline timezone:** All deadline entry and display use Asia/Taipei time, clearly labeled, regardless of the user's device timezone. Backend time remains authoritative and Q54/Q55 eligibility rules still apply.
+**Q64 — Declared deadline timezone:** All deadline entry and display use America/New_York time, clearly labeled, regardless of the user's device timezone. Backend time remains authoritative and Q54/Q55 eligibility rules still apply.
 
 **Q65 — No earlier request expiry:** Pending applications and invitations have no separate expiration timer before the activity's current deadline. They end through a permitted response, Q9 join-triggered cancellation, Q56 group-full cancellation, or Q40 deadline expiry; an unanswered request may remain pending until one of these outcomes.
 
@@ -156,7 +158,7 @@ flowchart TD
     AC{"DECISION - System: Course has no grouping activity?"}
     AX(["OUTCOME: Course already has a grouping activity; no second activity created"])
     A3["SYSTEM: Show activity input form"]
-    A4[/"USER - Teacher: Enter nonblank plain-text instructions up to 5000 characters, manual capacity list, and Asia/Taipei deadline; submit"/]
+    A4[/"USER - Teacher: Enter nonblank plain-text instructions up to 5000 characters, manual capacity list, and America/New_York deadline; submit"/]
     AS{"DECISION - System: Submission authentication, teacher-course assignment, authorization, and CSRF checks pass?"}
     AC2{"DECISION - System: Course still has no grouping activity?"}
     A5{"DECISION - System: At least two participants and nonempty capacity list; required plain-text instructions at most 5000 characters valid; deadline present and strictly future by backend time; each capacity a whole number at least 2; total equals eligible student count; other validation passes?"}
@@ -198,7 +200,7 @@ flowchart TD
 
 Only input validation failures enter the correction loop. Failed authentication requires login; permission or CSRF rejection stops the request and follows the shared security guidance. Editing activity inputs does not remedy a security failure.
 
-**Technical design remaining:** Creation-time participant consistency, transaction recording, and deadline synchronization. Q72 requires at least two participants and a nonempty list; Q30/Q31 specify exact total and minimum whole-number capacities. Required plain-text instructions, labeled Asia/Taipei deadlines, immutable capacities, immediate opening, and permitted amendments are confirmed. No additional limit or editing feature has been selected.
+**Technical design remaining:** Creation-time participant consistency, transaction recording, and deadline synchronization. Q72 requires at least two participants and a nonempty list; Q30/Q31 specify exact total and minimum whole-number capacities. Required plain-text instructions, labeled America/New_York deadlines, immutable capacities, immediate opening, and permitted amendments are confirmed. No additional limit or editing feature has been selected.
 
 **Instructions amendment (Q35, Q61):** The assigned teacher may edit the activity's task description and guidance while grouping is open, after the deadline, during allocation, and after finalization. The backend checks authentication, assignment, resource access, CSRF, and nonblank plain-text instructions of at most 5,000 characters; the grouping cutoff does not block this text-only edit. A permitted save confirms the new text; rejected or definitively failed saves leave the prior instructions unchanged. This does not change capacities, groups, memberships, requests, or the deadline, and grants no teacher live-progress view. Q61 also permits text-only edits after the deadline and finalization; Q60 resolves notifications; Q63 excludes user-facing description history and restore.
 

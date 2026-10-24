@@ -77,7 +77,7 @@ test('private invitations coexist with applications, retain rejection history, a
     const pages = await Promise.all(contexts.map(context => context.newPage()))
     const [teacher, m1, m2, recipient, second, rival, peer] = pages as [Page, Page, Page, Page, Page, Page, Page]
     for (const [index, page] of pages.entries()) await login(page, index === 0 ? 'batch-teacher' : `batch-student-${index}`)
-    const course = await create(teacher, 'BATCH-707', '2099-03-15T06:30:00Z', [3, 3, 2])
+    const course = await create(teacher, 'BATCH-707', '2099-03-15T18:30:00Z', [3, 3, 2])
     const groups = (await discover(m1, course)).groups
     await join(m1, course, groups[0]!.id); await join(m2, course, groups[1]!.id)
     await application(recipient, course, groups[0]!.id)

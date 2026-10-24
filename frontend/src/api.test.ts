@@ -88,7 +88,7 @@ test.each([403, 500])('creation POST status %s is never replayed and carries exp
     .mockResolvedValueOnce(new Response(JSON.stringify({ activity: null, enrolledCount: 6 })))
   vi.stubGlobal('fetch', fetchMock)
   const { createActivity, getActivity } = await import('./api')
-  const command = { commandKey: '11111111-1111-4111-8111-111111111111', instructions: 'Exact\ntext  ', deadline: '2099-10-20T10:00:00+08:00', capacities: [2, 4] }
+  const command = { commandKey: '11111111-1111-4111-8111-111111111111', instructions: 'Exact\ntext  ', deadline: '2099-10-20T10:00:00-04:00', capacities: [2, 4] }
   await expect(createActivity('course', command)).rejects.toMatchObject({ status })
   expect(fetchMock.mock.calls[1]).toEqual(['/api/courses/course/activity', { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': 'creation-token', 'Content-Type': 'application/json' }, body: JSON.stringify(command) }])
   expect(await getActivity('course')).toEqual({ activity: null, enrolledCount: 6 })
@@ -101,7 +101,7 @@ test('lost creation response is not replayed and an explicit later attempt obtai
     .mockResolvedValueOnce(new Response(JSON.stringify({ activity: { id: 'a' }, enrolledCount: null })))
   vi.stubGlobal('fetch', fetchMock)
   const { createActivity } = await import('./api')
-  const command = { commandKey: 'first', instructions: 'Task', deadline: '2099-10-20T10:00:00+08:00', capacities: [2] }
+  const command = { commandKey: 'first', instructions: 'Task', deadline: '2099-10-20T10:00:00-04:00', capacities: [2] }
   await expect(createActivity('course', command)).rejects.toThrow('lost response')
   expect(fetchMock).toHaveBeenCalledTimes(2)
   await expect(createActivity('course', { ...command, commandKey: 'second' })).resolves.toMatchObject({ activity: { id: 'a' } })
@@ -113,7 +113,7 @@ test.each(['instructions', 'deadline'] as const)('settings %s sends narrow JSON 
     .mockResolvedValueOnce(new Response(null, { status: 403 }))
   vi.stubGlobal('fetch', fetchMock)
   const api = await import('./api')
-  const command = setting === 'instructions' ? { commandKey: 'new-key', instructions: 'Exact\n<script>text</script>  😀' } : { commandKey: 'new-key', deadline: '2099-10-21T10:00:00+08:00' }
+  const command = setting === 'instructions' ? { commandKey: 'new-key', instructions: 'Exact\n<script>text</script>  😀' } : { commandKey: 'new-key', deadline: '2099-10-21T10:00:00-04:00' }
   await expect(setting === 'instructions' ? api.saveInstructions('course', command as { commandKey: string; instructions: string }) : api.extendDeadline('course', command as { commandKey: string; deadline: string })).rejects.toMatchObject({ status: 403 })
   expect(fetchMock).toHaveBeenCalledTimes(2)
   expect(fetchMock.mock.calls[1]).toEqual([`/api/courses/course/activity/${setting}`, { method: setting === 'instructions' ? 'PUT' : 'POST', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': 'settings-token', 'Content-Type': 'application/json' }, body: JSON.stringify(command) }])

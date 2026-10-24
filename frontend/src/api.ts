@@ -115,7 +115,7 @@ export async function createActivity(id: string, command: CreateActivity): Promi
     method: 'POST', credentials: 'same-origin', headers: { [csrf.headerName]: csrf.token, 'Content-Type': 'application/json' }, body: JSON.stringify(command),
   })
   if (!response.ok) throw new ApiError(response.status, response.status === 400
-    ? 'Check the instructions, future Asia/Taipei deadline, and whole-number capacities. Their total must match all currently enrolled students.'
+    ? 'Check the instructions, future America/New_York deadline, and whole-number capacities. Their total must match all currently enrolled students.'
     : response.status === 401 ? 'Your session expired. Please sign in again.'
       : response.status === 403 ? 'The request was denied. Refresh your session and check activity status before continuing.'
         : response.status === 404 ? 'This course is unavailable or you do not have access.' : 'Creation could not be confirmed. Check activity status before trying again.')

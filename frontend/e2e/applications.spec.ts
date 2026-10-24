@@ -76,7 +76,7 @@ test('private applications preserve rejected attempts, reserve no place, approve
     const pages = await Promise.all(contexts.map(context => context.newPage()))
     const [teacher, m1, m2, applicant, rival, peer] = pages as [Page, Page, Page, Page, Page, Page]
     for (const [index, page] of pages.entries()) await login(page, index === 0 ? 'batch-teacher' : `batch-student-${index}`)
-    const course = await create(teacher, 'BATCH-606', '2099-03-15T06:30:00Z', [2, 2, 2, 2])
+    const course = await create(teacher, 'BATCH-606', '2099-03-15T18:30:00Z', [2, 2, 2, 2])
     const groups = (await discover(m1, course)).groups
     await join(m1, course, groups[0]!.id); await join(m2, course, groups[1]!.id)
     await open(applicant, course, 'groups')

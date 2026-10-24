@@ -1,5 +1,7 @@
 # Classroom Grouping System — V1 Technical Stack and Design
 
+**Approved timezone amendment (2026-10-19):** Deadline entry/display uses America/New_York with seasonal offsets, independent of device timezone. Reject nonexistent and repeated daylight-saving wall times. Preserve stored instants and database-clock cutoff checks. See [release evidence](v1-demo-release.md).
+
 ## Status and authority
 
 **Status:** Technical direction TD1–TD34 approved on 2026-10-13, including the revised TD7, TD8, and TD26, conditional TD25 and TD30, and incremental validation clarification for TD34. Approval establishes the design direction; it does not establish implementation correctness or hosting suitability.
@@ -77,7 +79,7 @@ Activity creation serializes on the existing course record because no activity r
 
 Grouping mutations use PostgreSQL **READ COMMITTED** transactions and an activity-row pessimistic lock. After waiting for the lock, reread authoritative membership, capacity, request, authorization, and deadline state. Different activities remain independent.
 
-Before saving a student grouping mutation, obtain PostgreSQL `clock_timestamp()` and require it to be strictly earlier than the current deadline. Apply the same final-time eligibility rule to permitted deadline extensions. Transaction-start `now()` is unsuitable after a lock wait. Store deadline instants using `timestamptz`; enter and display them in labeled Asia/Taipei time. This implements Q55's final eligibility check, not a physical commit-before-deadline promise. [PostgreSQL time functions](https://www.postgresql.org/docs/current/functions-datetime.html)
+Before saving a student grouping mutation, obtain PostgreSQL `clock_timestamp()` and require it to be strictly earlier than the current deadline. Apply the same final-time eligibility rule to permitted deadline extensions. Transaction-start `now()` is unsuitable after a lock wait. Store deadline instants using `timestamptz`; enter and display them in labeled America/New_York time. This implements Q55's final eligibility check, not a physical commit-before-deadline promise. [PostgreSQL time functions](https://www.postgresql.org/docs/current/functions-datetime.html)
 
 For successful joining, one transaction establishes membership, preserves the accepted request when applicable, cancels the student's other pending requests in that activity, and cancels remaining requests to a newly full group with reason "Group full". It also records the success receipt. Empty-group first joining establishes the manager; system assignment to an empty group does not appoint one.
 
@@ -239,7 +241,7 @@ All entries below are approved direction subject to the conditions and staged va
 | TD9 | One complete immutable PostgreSQL allocation plan before assignments. |
 | TD10 | Planned assignment, completeness validation, and finalization commit atomically. |
 | TD11 | Durable capped-backoff transient retries; integrity faults halt; original plan retained. |
-| TD12 | PostgreSQL clock_timestamp(), stored instants, Asia/Taipei deadline entry/display. |
+| TD12 | PostgreSQL clock_timestamp(), stored instants, America/New_York deadline entry/display. |
 | TD13 | Spring Session JDBC; Flyway session schema; Neon usage validation. |
 | TD14 | DelegatingPasswordEncoder/bcrypt, secure seeded credentials, benchmarked hashing and bounded login throttling. |
 | TD15 | Secure/HttpOnly/host-only/SameSite=Lax cookies; session rotation and logout invalidation. |
