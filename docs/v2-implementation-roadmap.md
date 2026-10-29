@@ -1,3 +1,5 @@
+**V2 Batch 2 owner acceptance — 2026-10-29:** The owner reported manual acceptance complete for V2-1a, V2-1b and V2-2 and authorized finalizing the two dependent PRs. See [finalization evidence](v2-batch-2-finalization.md) for current checks and branch boundaries. Implementation is locally complete and manually accepted; merge and deployment remain pending. Announcements remain Not Started and must wait until Batch 2 is merged and separately authorized. Historical local evidence remains dated; Foundation/hosting operational gates remain open.
+
 # Classroom Grouping System — V2 implementation roadmap
 
 ## Status, authorization, and sequence
@@ -23,10 +25,10 @@ Statuses: **Not Started**, **In Progress**, **Completed**. A completed planning 
 | Slice | Status | Dependencies | Actual evidence / remaining work |
 |---|---|---|---|
 | V2-0. Baseline recovery and acceptance fixtures | Completed | Existing V1 and timezone amendment | 2026-10-20–21 local acceptance: frontend180/build, prototype7, focused timezone25, full Java25/PostgreSQL17 Maven163 (0 failures/errors/skips), jar24; 2026-10-21 current pinned image build/runtime/security and complete image Chromium24 (one worker/zero retries) PASS. UID10001/512MiB/health200/noOOM/restarts0; concurrent ticks preserve allocation state. Old disposable container removed without deleting its volume; new owned containers stopped. Initial failures retained. See [V2-0 evidence](v2-0.md); hosted/private-CI gates remain separate and open |
-| V2-1a. Historical actor integrity and current-manager access | Not Started | V2-0 | Forward migration/current-manager history and decision checks outstanding |
-| V2-1b. Voluntary departure and automatic succession | Not Started | V2-1a | GL-01/02/04/05/06 command/UI/receipt/race checks outstanding |
-| V2-2. Deliberate manager transfer | Not Started | V2-1 | Transfer and combined authority-race checks outstanding |
-| V2-3a. Announcement publication, listing and revision-checked edits | Not Started | V2-2 | Courses receipt/outbox/CRUD/UI/denial checks outstanding; no provider needed |
+| V2-1a. Historical actor integrity and current-manager access | Completed | V2-0 | 2026-10-29 owner manual acceptance complete; finalization in two dependent PRs (merge pending). 2026-10-23 V10 populated/fresh upgrade and current-manager/cursor/replay checks PASS; focused PostgreSQL20, full frontend186/build/Maven192, jar25/image25, independent review/cleanup. See [Batch2 evidence](v2-batch-2.md); external gates remain open |
+| V2-1b. Voluntary departure and automatic succession | Completed | V2-1a | 2026-10-29 owner manual acceptance complete; finalization in two dependent PRs (merge pending). 2026-10-23 GL-01/02/04/05/06 command/UI/receipt/rollback/races PASS in lifecycle26 and full Maven192; G1/return/empty reuse in complete jar25/image25. Reviewed; owned services stopped. See [Batch2 evidence](v2-batch-2.md) |
+| V2-2. Deliberate manager transfer | Completed | V2-1b | 2026-10-29 owner manual acceptance complete; finalization in two dependent PRs (merge pending). 2026-10-23 transfer/inherited authority/target/duplicate/cutoff/revocation/rollback checks PASS in lifecycle26 and full Maven192; G2/lost-response privacy in complete jar25/image25. Independent review/cleanup PASS. See [Batch2 evidence](v2-batch-2.md) |
+| V2-3a. Announcement publication, listing and revision-checked edits | Not Started | V2-2 merged with Batch 2 | Courses receipt/outbox/CRUD/UI/denial checks outstanding; no provider needed |
 | V2-3b. Announcement deletion and uncertain-response recovery | Not Started | V2-3a | Tombstone/content clearing/confirmation/reconciliation checks outstanding |
 | V2-4. Core-feature acceptance | Not Started | V2-1–V2-3 | Lifecycle/announcement independent acceptance outstanding |
 | V2-5. Joint free-provider and pgvector feasibility | Not Started | V2-4 | Synthetic generation/embedding comparison and owner provider approval outstanding |

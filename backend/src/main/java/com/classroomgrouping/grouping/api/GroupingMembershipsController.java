@@ -17,16 +17,37 @@ public class GroupingMembershipsController {
     @PostMapping("/api/courses/{courseId}/groups/{groupId}/join")
     public GroupingMemberships.Discovery join(Principal principal, @PathVariable UUID courseId,
             @PathVariable UUID groupId, @RequestBody JoinEmptyGroup request) {
-        UUID key;
+        return memberships.joinEmpty(principal, courseId, groupId, uuid(request.commandKey(), "commandKey"));
+    }
+    @PostMapping("/api/courses/{courseId}/groups/{groupId}/leave")
+    public GroupingMemberships.Discovery leave(Principal principal, @PathVariable UUID courseId,
+            @PathVariable UUID groupId, @RequestBody LeaveGroup request) {
+        return memberships.leave(principal, courseId, groupId, uuid(request.commandKey(), "commandKey"));
+    }
+    @PostMapping("/api/courses/{courseId}/groups/{groupId}/manager-transfer")
+    public GroupingMemberships.Discovery transfer(Principal principal, @PathVariable UUID courseId,
+            @PathVariable UUID groupId, @RequestBody TransferManager request) {
+        return memberships.transferManager(principal, courseId, groupId,
+                uuid(request.commandKey(), "commandKey"), uuid(request.targetMemberId(), "targetMemberId"));
+    }
+    private static UUID uuid(JsonNode node, String field) {
         try {
-            if (request.commandKey() == null || !request.commandKey().isString()) throw new IllegalArgumentException();
-            String value = request.commandKey().asString(); key = UUID.fromString(value);
+            if (node == null || !node.isString()) throw new IllegalArgumentException();
+            String value = node.asString(); UUID key = UUID.fromString(value);
             if (!key.toString().equalsIgnoreCase(value)) throw new IllegalArgumentException();
-        } catch (IllegalArgumentException invalid) { throw new GroupingValidationException("commandKey"); }
-        return memberships.joinEmpty(principal, courseId, groupId, key);
+            return key;
+        } catch (IllegalArgumentException invalid) { throw new GroupingValidationException(field); }
     }
     public record JoinEmptyGroup(JsonNode commandKey) {
         @JsonAnySetter public void rejectUnknown(String field, JsonNode value) { throw new GroupingValidationException("fields"); }
         @Override public String toString() { return "JoinEmptyGroup[redacted]"; }
+    }
+    public record LeaveGroup(JsonNode commandKey) {
+        @JsonAnySetter public void rejectUnknown(String field, JsonNode value) { throw new GroupingValidationException("fields"); }
+        @Override public String toString() { return "LeaveGroup[redacted]"; }
+    }
+    public record TransferManager(JsonNode commandKey, JsonNode targetMemberId) {
+        @JsonAnySetter public void rejectUnknown(String field, JsonNode value) { throw new GroupingValidationException("fields"); }
+        @Override public String toString() { return "TransferManager[redacted]"; }
     }
 }

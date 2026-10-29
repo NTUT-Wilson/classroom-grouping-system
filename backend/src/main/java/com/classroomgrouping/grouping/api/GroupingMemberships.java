@@ -7,6 +7,8 @@ import java.util.UUID;
 public interface GroupingMemberships {
     Discovery discover(Principal principal, UUID courseId);
     Discovery joinEmpty(Principal principal, UUID courseId, UUID groupId, UUID commandKey);
+    Discovery leave(Principal principal, UUID courseId, UUID groupId, UUID commandKey);
+    Discovery transferManager(Principal principal, UUID courseId, UUID groupId, UUID commandKey, UUID targetMemberId);
     record Discovery(UUID activityId, String status, UUID ownGroupId, List<Group> groups) {}
     record Group(UUID id, String name, int capacity, int availablePlaces, Profile manager, List<Profile> members) {}
     record Profile(UUID accountId, String studentId, String studentName, String aboutMe) {}

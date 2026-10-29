@@ -146,6 +146,7 @@ body { margin:0; }
 .groups-workspace h2 { margin:6px 0; }
 .group-status { border:1px solid #cbd8f4; background:#edf2ff; padding:20px 24px; border-radius:12px; margin-bottom:24px; }
 .group-status h3 { margin:0 0 6px; }
+.group-status .editor-actions button { max-width:100%; overflow-wrap:anywhere; }
 .groups-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:22px; align-items:start; }
 .group-card { padding:24px; border:1px solid #e1e8ee; background:white; border-radius:12px; min-width:0; }
 .own-group { border-color:#789deb; }
@@ -157,7 +158,7 @@ body { margin:0; }
 .group-members { margin:0; padding:0; list-style:none; }
 .group-member { padding:16px 0; border-top:1px solid #edf0f5; overflow-wrap:anywhere; }
 .group-member p { color:#627684; font-size:12px; margin-top:5px; }
-.join-explanation { margin-top:18px !important; color:#627684; }
+.join-explanation { margin-top:18px !important; color:#627684; overflow-wrap:anywhere; }
 @media(max-width:900px) { .groups-grid { grid-template-columns:minmax(0,1fr); } }
 @media(max-width:700px) { .group-card { padding:22px; } .course-tabs { gap:24px; } }
 .requests-workspace { margin-top:28px; }

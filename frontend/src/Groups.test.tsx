@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { Groups } from './Groups'
 import * as api from './api'
-vi.mock('./api', async importOriginal => ({ ...await importOriginal<typeof api>(), getInvitations: vi.fn(), getGrouping: vi.fn(), getApplications: vi.fn(), applyToGroup: vi.fn(), joinEmptyGroup: vi.fn() }))
+vi.mock('./api', async importOriginal => ({ ...await importOriginal<typeof api>(), getInvitations: vi.fn(), getGrouping: vi.fn(), getApplications: vi.fn(), applyToGroup: vi.fn(), joinEmptyGroup: vi.fn(), leaveGroup: vi.fn(), transferManager: vi.fn() }))
 const course = { id: 'course-one', code: 'C1', name: 'Computing' }
 const own = { accountId: 'own', studentId: '00001', studentName: 'Alex', aboutMe: 'Current own text' }
 const peer = { accountId: 'peer', studentId: '00002', studentName: '陳 <Mina>', aboutMe: '<script>literal</script>\nCurrent introduction' }
@@ -142,7 +142,7 @@ test('late successful join cannot display old-course membership after navigation
   vi.mocked(api.joinEmptyGroup).mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
   vi.mocked(api.getGrouping).mockResolvedValueOnce(open).mockResolvedValueOnce({ activityId: null, status: 'ABSENT', ownGroupId: null, groups: [] })
   const view = mount(); await confirm(user)
-  await screen.findByText('Confirming your join…')
+  await screen.findByText('Confirming group action…')
   view.rerender(<Groups course={{ ...course, id: 'next' }} accountId="own" expired={vi.fn()} />)
   await screen.findByText('No grouping activity yet')
   await act(async () => { finish(joined) })
@@ -194,4 +194,56 @@ test('application conflict reads current state before a new explicit key can be 
   await screen.findByText(/Application recorded/)
   expect(api.getApplications).toHaveBeenCalledTimes(2)
   expect(vi.mocked(api.applyToGroup).mock.calls[0][2].commandKey).not.toBe(vi.mocked(api.applyToGroup).mock.calls[1][2].commandKey)
+})
+
+
+test('departure confirms deliberately, cancel restores focus, then current histories reconcile', async () => {
+  vi.mocked(api.getGrouping).mockResolvedValue(joined)
+  vi.mocked(api.leaveGroup).mockImplementation(async () => { vi.mocked(api.getGrouping).mockResolvedValue(open); return open })
+  const user = userEvent.setup(); mount()
+  await user.click(await screen.findByRole('button', { name: 'Leave group' }))
+  expect(screen.getByRole('dialog', { name: 'Leave Group 1?' })).toHaveTextContent('no reserved place')
+  expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus()
+  await user.click(screen.getByRole('button', { name: 'Cancel' }))
+  expect(screen.getByRole('button', { name: 'Leave group' })).toHaveFocus()
+  expect(api.leaveGroup).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: 'Leave group' }))
+  await user.click(screen.getByRole('button', { name: 'Confirm departure' }))
+  await screen.findByText('You are ungrouped')
+  expect(api.leaveGroup).toHaveBeenCalledWith(course.id, 'g1', { commandKey: expect.any(String) })
+  expect(api.getApplications).toHaveBeenCalledTimes(2)
+  expect(api.getInvitations).toHaveBeenCalledTimes(2)
+})
+
+test('only current manager transfers to another member and loses controls after reconciliation', async () => {
+  const full = { ...joined, groups: [{ ...joined.groups[0], members: [own, peer], availablePlaces: 0 }, open.groups[1]] }
+  vi.mocked(api.getGrouping).mockResolvedValue(full)
+  vi.mocked(api.transferManager).mockImplementation(async () => { const result = { ...full, groups: [{ ...full.groups[0], manager: peer }, full.groups[1]] }; vi.mocked(api.getGrouping).mockResolvedValue(result); return result })
+  const user = userEvent.setup(); mount()
+  await user.click(await screen.findByRole('button', { name: 'Transfer manager role to ' + peer.studentName }))
+  expect(screen.getByRole('dialog')).toHaveTextContent('without acceptance')
+  await user.click(screen.getByRole('button', { name: 'Confirm transfer' }))
+  await screen.findByText('You are a member of Group 1.')
+  expect(api.transferManager).toHaveBeenCalledWith(course.id, 'g1', { commandKey: expect.any(String), targetMemberId: peer.accountId })
+  expect(screen.queryByRole('button', { name: /Transfer manager/ })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Leave group' })).toBeInTheDocument()
+})
+
+test.each(['leave', 'transfer'] as const)('%s lost response blocks controls until all current reads succeed without replay', async kind => {
+  const full = { ...joined, groups: [{ ...joined.groups[0], members: [own, peer], availablePlaces: 0 }, open.groups[1]] }
+  vi.mocked(api.getGrouping).mockResolvedValue(full)
+  vi.mocked(api.leaveGroup).mockRejectedValue(new TypeError('lost response'))
+  vi.mocked(api.transferManager).mockRejectedValue(new TypeError('lost response'))
+  const user = userEvent.setup(); mount()
+  await user.click(await screen.findByRole('button', { name: kind === 'leave' ? 'Leave group' : 'Transfer manager role to ' + peer.studentName }))
+  await user.click(screen.getByRole('button', { name: kind === 'leave' ? 'Confirm departure' : 'Confirm transfer' }))
+  await screen.findByRole('alert')
+  expect(screen.queryByRole('button', { name: 'Leave group' })).not.toBeInTheDocument()
+  vi.mocked(api.getInvitations).mockRejectedValueOnce(new Error('offline'))
+  await user.click(screen.getByRole('button', { name: 'Check current groups' }))
+  await screen.findByRole('alert')
+  expect(screen.queryByRole('button', { name: 'Leave group' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Check current groups' }))
+  await screen.findByRole('button', { name: 'Leave group' })
+  expect(kind === 'leave' ? api.leaveGroup : api.transferManager).toHaveBeenCalledTimes(1)
 })

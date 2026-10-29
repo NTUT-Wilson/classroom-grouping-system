@@ -1,3 +1,7 @@
+**V2 Batch 2 owner acceptance — 2026-10-29:** The owner reported manual acceptance complete for V2-1a, V2-1b and V2-2 and authorized finalizing the two dependent PRs. See [finalization evidence](v2-batch-2-finalization.md) for current checks and branch boundaries. Implementation is locally complete and manually accepted; merge and deployment remain pending. Announcements remain Not Started and must wait until Batch 2 is merged and separately authorized. Historical local evidence remains dated; Foundation/hosting operational gates remain open.
+
+**V2 Batch2 local acceptance — 2026-10-23:** Separately authorized V2-1a, V2-1b and V2-2 are locally completed. [V2 progress](v2-implementation-roadmap.md) and [evidence](v2-batch-2.md) record frontend186/build, full PostgreSQL17 Maven192, complete jar25/image25 Chromium, independent review and owned-service cleanup PASS. Retained V1 behavior is verified; external hosting/private-CI gates remain open. V2-3 and later slices, providers and deployment remain separately gated.
+
 # Approved V1 implementation roadmap
 
 **Project-wide amendment (2026-10-19):** The English-only United States university assumption in [Project assumptions](project-assumptions.md) applies to V1, V2, and future requirements, architecture, flows, and acceptance. No multilingual support, translation, localization, or cross-language retrieval is required. This is not a nationality or native-language verification requirement. All deadline entry and display use America/New_York with daylight-saving handling; reject nonexistent and ambiguous wall times. Backend validation compares instants against authoritative database time.
@@ -8,7 +12,7 @@ The [PRD](PRD.md) governs product behavior, the [technical stack](tech-stack.md)
 
 ## Progress tracker
 
-The separate [V2 roadmap](v2-implementation-roadmap.md) records V2-0 local acceptance completed on 2026-10-21; all later V2 implementation slices remain **Not Started** and require authorization. The roadmap itself does not authorize a new slice, amend historical V1 verification results, or close hosted/private-CI gates.
+The separate [V2 roadmap](v2-implementation-roadmap.md) records V2-0 local acceptance completed on 2026-10-21 and V2-1a/V2-1b/V2-2 locally completed with owner manual acceptance on 2026-10-29; V2-3 and later slices remain **Not Started** and require separate authorization after their dependencies. Announcements cannot start until Batch 2 is merged. The roadmap itself does not authorize a new slice, amend historical V1 verification results, or close hosted/private-CI gates.
 
 **Project-wide timezone follow-up: Completed locally, 2026-10-21.** America/New_York frontend/unit/build, real PostgreSQL integration, complete jar24 and current image24 workflows pass, including winter/summer/DST/device-zone/saved-instant checks. [Timezone amendment](timezone-amendment.md) preserves initial failures and exact dated evidence; hosted/private-CI gates remain separate. Historical V1 slice passes below are not substituted for amendment verification.
 

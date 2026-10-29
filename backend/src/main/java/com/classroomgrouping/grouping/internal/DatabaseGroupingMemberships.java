@@ -17,6 +17,7 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -77,6 +78,70 @@ class DatabaseGroupingMemberships implements GroupingMemberships {
         joining.join(activity.id(), activity.deadline(), groupId, access.actorId(), null);
         return project(courseId, activity, access.actorId());
     }
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public Discovery leave(Principal principal, UUID courseId, UUID groupId, UUID commandKey) {
+        var activities = activity(courseId, true);
+        var access = student(principal, courseId);
+        if (activities.isEmpty()) throw new CourseNotAccessible();
+        var activity = activities.getFirst();
+        UUID actor = access.actorId();
+        participant(activity.id(), actor);
+        if (replay(actor, "LEAVE_GROUP", commandKey, fingerprint(courseId, groupId), activity.id()))
+            return project(courseId, activity, actor);
+        var manager = managedGroup(activity.id(), groupId);
+        var members = jdbc.queryForList("SELECT account_id FROM activity_membership WHERE activity_id=? AND group_id=? ORDER BY account_id",
+                UUID.class, activity.id(), groupId);
+        if (!members.contains(actor)) throw new CourseNotAccessible();
+        var remaining = members.stream().filter(id -> !id.equals(actor)).toList();
+        UUID successor = actor.equals(manager) && !remaining.isEmpty()
+                ? remaining.get(ThreadLocalRandom.current().nextInt(remaining.size())) : manager;
+        if (remaining.isEmpty()) successor = null;
+        // The authoritative wall-clock check follows all eligibility reads and random selection.
+        joining.requireOpen(activity.deadline());
+        jdbc.update("DELETE FROM activity_membership WHERE activity_id=? AND group_id=? AND account_id=?",
+                activity.id(), groupId, actor);
+        if (actor.equals(manager) || remaining.isEmpty())
+            jdbc.update("UPDATE activity_group SET manager_account_id=? WHERE activity_id=? AND id=?", successor, activity.id(), groupId);
+        if (remaining.isEmpty()) {
+            jdbc.update("UPDATE application_attempt SET status='CANCELED',reason='Group empty' WHERE activity_id=? AND group_id=? AND status='PENDING'", activity.id(), groupId);
+            jdbc.update("UPDATE invitation_attempt SET status='CANCELED',reason='Group empty' WHERE activity_id=? AND group_id=? AND status='PENDING'", activity.id(), groupId);
+        }
+        return project(courseId, activity, actor);
+    }
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public Discovery transferManager(Principal principal, UUID courseId, UUID groupId, UUID commandKey, UUID targetMemberId) {
+        var activities = activity(courseId, true);
+        var access = student(principal, courseId);
+        if (activities.isEmpty()) throw new CourseNotAccessible();
+        var activity = activities.getFirst();
+        UUID actor = access.actorId();
+        participant(activity.id(), actor);
+        if (targetMemberId == null) throw new GroupingValidationException("targetMemberId");
+        if (replay(actor, "TRANSFER_MANAGER", commandKey, fingerprint(courseId, groupId, targetMemberId), activity.id()))
+            return project(courseId, activity, actor);
+        if (!actor.equals(managedGroup(activity.id(), groupId))) throw new CourseNotAccessible();
+        if (actor.equals(targetMemberId)) throw new GroupingValidationException("targetMemberId");
+        if (!Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM activity_membership WHERE activity_id=? AND group_id=? AND account_id=?)",
+                Boolean.class, activity.id(), groupId, targetMemberId))) throw new CourseNotAccessible();
+        joining.requireOpen(activity.deadline());
+        jdbc.update("UPDATE activity_group SET manager_account_id=? WHERE activity_id=? AND id=?", targetMemberId, activity.id(), groupId);
+        return project(courseId, activity, actor);
+    }
+    private UUID managedGroup(UUID activityId, UUID groupId) {
+        var groups = jdbc.query("SELECT manager_account_id FROM activity_group WHERE activity_id=? AND id=?",
+                (rs, row) -> rs.getObject(1, UUID.class), activityId, groupId);
+        if (groups.isEmpty()) throw new CourseNotAccessible();
+        return groups.getFirst();
+    }
+    private boolean replay(UUID actor, String command, UUID key, String fingerprint, UUID activityId) {
+        if (key == null) throw new GroupingValidationException("commandKey");
+        if (jdbc.update("INSERT INTO grouping_command_receipt(actor_id,command,command_key,fingerprint,activity_id) VALUES (?,?,?,?,?) ON CONFLICT DO NOTHING",
+                actor, command, key, fingerprint, activityId) != 0) return false;
+        var saved = jdbc.queryForObject("SELECT fingerprint FROM grouping_command_receipt WHERE actor_id=? AND command=? AND command_key=?",
+                String.class, actor, command, key);
+        if (!fingerprint.equals(saved)) throw new GroupingConflict("COMMAND_KEY_REUSED");
+        return true;
+    }
     private ActivityCourseAccess.Access student(Principal principal, UUID courseId) {
         var access = courses.read(principal, courseId);
         if (access.teacher()) throw new CourseNotAccessible();
@@ -125,10 +190,10 @@ class DatabaseGroupingMemberships implements GroupingMemberships {
         if (!open(activity)) return closed(activity);
         return new Discovery(activity.id(), "OPEN", ownGroup, groups);
     }
-    private static String fingerprint(UUID courseId, UUID groupId) {
+    private static String fingerprint(UUID courseId, UUID groupId, UUID... extra) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(
-                    (courseId.toString() + ":" + groupId.toString()).getBytes(StandardCharsets.UTF_8)));
+                    (courseId.toString() + ":" + groupId.toString() + java.util.Arrays.stream(extra).map(id -> ":" + id).collect(java.util.stream.Collectors.joining())).getBytes(StandardCharsets.UTF_8)));
         } catch (java.security.NoSuchAlgorithmException impossible) {
             throw new IllegalStateException("Cannot fingerprint grouping command", impossible);
         }
