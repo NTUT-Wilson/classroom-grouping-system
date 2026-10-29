@@ -45,9 +45,9 @@ test.each(['member', 'outsider'])('%s cannot send or respond', async actor => {
 test.each([0, -1])('full own group has no sending action (%s places)', async availablePlaces => {
   vi.mocked(api.getGrouping).mockResolvedValue({ ...groups, ownGroupId: 'g1', groups: [{ ...groups.groups[0], availablePlaces }] }); mount('manager'); await screen.findByText('PENDING'); expect(screen.queryByRole('button', { name: /^Invite / })).not.toBeInTheDocument()
 })
-test('older authorized pages append completed attempts, refresh returns first page', async () => {
+test('older authorized pages replace private attempts, refresh returns first page', async () => {
   vi.mocked(api.getInvitations).mockResolvedValueOnce({ ...page, nextCursor: 'opaque+/=' }).mockResolvedValueOnce({ ...page, items: [{ ...invitation, id: 'old', status: 'CANCELED', reason: 'Group full' }] }).mockResolvedValue(page)
-  const user = userEvent.setup(); mount(); await user.click(await screen.findByRole('button', { name: 'Load older' })); await screen.findByText('Reason · Group full'); expect(screen.getAllByRole('article')).toHaveLength(2)
+  const user = userEvent.setup(); mount(); await user.click(await screen.findByRole('button', { name: 'Load older' })); await screen.findByText('Reason · Group full'); expect(screen.getAllByRole('article')).toHaveLength(1)
   expect(api.getInvitations).toHaveBeenNthCalledWith(2, 'course', 'opaque+/='); await user.click(screen.getByRole('button', { name: 'Refresh requests' })); await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(1)); expect(api.decideInvitation).not.toHaveBeenCalled()
 })
 test.each([401, 403, 404])('denied history %s clears identity and actions', async status => {

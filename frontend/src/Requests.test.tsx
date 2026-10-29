@@ -9,7 +9,7 @@ const applicant = { accountId: 'student', studentId: '00002', studentName: '陳 
 const manager = { accountId: 'manager', studentId: '00001', studentName: 'Alex', aboutMe: 'Manager introduction' }
 const attempt: api.ApplicationAttempt = { id: 'a1', groupId: 'g1', groupName: 'Group 1', applicant, manager, status: 'PENDING', reason: null, createdAt: '2026-10-15T04:00:00Z' }
 const page: api.ApplicationPage = { activityId: 'activity', status: 'OPEN', items: [attempt], nextCursor: null }
-const discovery: api.GroupDiscovery = { activityId: 'activity', status: 'OPEN', ownGroupId: 'g1', groups: [] }
+const discovery: api.GroupDiscovery = { activityId: 'activity', status: 'OPEN', ownGroupId: 'g1', groups: [{ id: 'g1', name: 'Group 1', capacity: 4, availablePlaces: 3, manager, members: [manager] }] }
 beforeEach(() => {
   vi.resetAllMocks(); vi.mocked(api.getInvitations).mockResolvedValue({ ...page, items: [] }); vi.mocked(api.getApplications).mockResolvedValue(page); vi.mocked(api.getGrouping).mockResolvedValue(discovery)
   vi.mocked(api.decideApplication).mockImplementation(async () => { const result: api.ApplicationPage = { ...page, items: [{ ...attempt, status: 'ACCEPTED' }] }; vi.mocked(api.getApplications).mockResolvedValue(result); return result })
@@ -41,12 +41,12 @@ test.each(['Approve', 'Reject'] as const)('%s requires explicit confirmation, su
   expect(api.decideApplication).toHaveBeenCalledWith('course', 'a1', { commandKey: expect.stringMatching(/^[0-9a-f-]{36}$/), decision: action === 'Approve' ? 'APPROVE' : 'REJECT' })
   expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
 })
-test('load older follows authorized cursor, retains earlier attempts, and refresh resets to first page', async () => {
+test('load older replaces private pages and refresh resets to first page', async () => {
   vi.mocked(api.getApplications).mockResolvedValueOnce({ ...page, nextCursor: 'opaque+/=' }).mockResolvedValueOnce({ ...page, items: [{ ...attempt, id: 'old', status: 'REJECTED' }] }).mockResolvedValue(page)
   const user = userEvent.setup(); mount('student')
   await user.click(await screen.findByRole('button', { name: 'Load older' }))
   expect(await screen.findByText('REJECTED')).toBeInTheDocument()
-  expect(screen.getAllByRole('article')).toHaveLength(2)
+  expect(screen.getAllByRole('article')).toHaveLength(1)
   expect(api.getApplications).toHaveBeenNthCalledWith(2, 'course', 'opaque+/=')
   await user.click(screen.getByRole('button', { name: 'Refresh requests' }))
   await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(1))
@@ -144,4 +144,25 @@ test.each(['counterpart history', 'command response'])('post-command finalized %
   expect(screen.queryByRole('button', { name: /Approve|Reject/ })).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'View my group status' })).toBeInTheDocument()
   expect(api.decideApplication).toHaveBeenCalledTimes(1)
+})
+
+
+test('successor can decide inherited attempts without rewriting historical manager', async () => {
+  const successor = { ...manager, accountId: 'successor', studentName: 'Successor' }
+  vi.mocked(api.getGrouping).mockResolvedValue({ ...discovery, groups: [{ ...discovery.groups[0], manager: successor, members: [manager, successor] }] })
+  const user = userEvent.setup(); mount('successor')
+  await screen.findByText('Manager at submission · Alex')
+  await respond(user)
+  expect(api.decideApplication).toHaveBeenCalledTimes(1)
+})
+
+test('old cursor replaces former-manager history and removes stale decision controls', async () => {
+  vi.mocked(api.getApplications).mockResolvedValueOnce({ ...page, nextCursor: 'old-cursor' }).mockResolvedValue({ ...page, items: [] })
+  const user = userEvent.setup(); mount()
+  await screen.findByRole('button', { name: 'Approve' })
+  vi.mocked(api.getGrouping).mockResolvedValue({ ...discovery, groups: [{ ...discovery.groups[0], manager: applicant }] })
+  await user.click(screen.getByRole('button', { name: 'Load older' }))
+  await screen.findByText('No applications yet')
+  expect(screen.queryByText('Manager at submission · Alex')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
 })
