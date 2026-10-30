@@ -8,6 +8,7 @@ public final class GroupingValidationException extends RuntimeException {
             case "fields" -> "Provide only the fields allowed for this grouping command.";
             case "decision" -> "Choose a response allowed for this request.";
             case "recipientId" -> "Provide a valid recipient account ID.";
+            case "targetMemberId" -> "Choose a different current member of this group.";
             case "cursor" -> "Provide a valid history cursor for this course and account.";
             case "limit" -> "Choose a page size between 1 and 50.";
             default -> throw new IllegalArgumentException("Unknown grouping field");

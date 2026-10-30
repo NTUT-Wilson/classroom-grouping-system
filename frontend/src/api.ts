@@ -76,6 +76,22 @@ export function listCourses(): Promise<Course[]> { return readCourse('/api/cours
 export function getCourse(id: string): Promise<Course> { return readCourse(`/api/courses/${encodeURIComponent(id)}`) }
 export function getActivity(id: string): Promise<ActivityWorkspace> { return readCourse(`/api/courses/${encodeURIComponent(id)}/activity`) }
 export function getGrouping(id: string): Promise<GroupDiscovery> { return readCourse(`/api/courses/${encodeURIComponent(id)}/grouping`) }
+async function lifecycleCommand(id: string, groupId: string, action: 'leave' | 'manager-transfer', command: { commandKey: string; targetMemberId?: string }): Promise<GroupDiscovery> {
+  if (!token) await refreshCsrf()
+  const csrf = token!
+  token = undefined
+  const response = await fetch(`/api/courses/${encodeURIComponent(id)}/groups/${encodeURIComponent(groupId)}/${action}`, {
+    method: 'POST', credentials: 'same-origin', headers: { [csrf.headerName]: csrf.token, 'Content-Type': 'application/json' }, body: JSON.stringify(command),
+  })
+  if (!response.ok) throw new ApiError(response.status, 'Group action could not be confirmed. Check current groups before continuing.')
+  return response.json() as Promise<GroupDiscovery>
+}
+export function leaveGroup(id: string, groupId: string, command: { commandKey: string }): Promise<GroupDiscovery> {
+  return lifecycleCommand(id, groupId, 'leave', command)
+}
+export function transferManager(id: string, groupId: string, command: { commandKey: string; targetMemberId: string }): Promise<GroupDiscovery> {
+  return lifecycleCommand(id, groupId, 'manager-transfer', command)
+}
 export async function joinEmptyGroup(id: string, groupId: string, command: { commandKey: string }): Promise<GroupDiscovery> {
   if (!token) await refreshCsrf()
   const csrf = token!
