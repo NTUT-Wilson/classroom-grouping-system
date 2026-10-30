@@ -98,6 +98,67 @@ class InvitationIntegrationTest {
     }
     private GroupingInvitations.InvitationPage respond(String p,GroupingActivities.Activity a,int recipient,UUID id,String decision,UUID key){return invitations.decide(()->p+"-s"+recipient,a.courseId(),id,key,decision);}
     private String state(String table,UUID id,String field){return jdbc.queryForObject("SELECT "+field+" FROM "+table+" WHERE id=?",String.class,id);}
+    @Test void currentAuthorityControlsInheritedHistoryDecisionsCursorsAndReplaysAfterCutoff(){
+        String p="v2-authority";UUID course=setup(p,6);
+        var a=create(p,course,UUID.randomUUID(),new GroupingActivities.CreateActivity("Synthetic",Instant.now().plusSeconds(3600),List.of(4,2))).activity();
+        UUID group=a.groups().getFirst().id();join(p,a,0,0,UUID.randomUUID());
+        UUID memberRequest=applications.apply(()->p+"-s1",course,group,UUID.randomUUID()).items().getFirst().id();
+        applications.decide(()->p+"-s0",course,memberRequest,UUID.randomUUID(),"APPROVE");
+        UUID rejectedKey=UUID.randomUUID();
+        UUID rejected=applications.apply(()->p+"-s2",course,group,UUID.randomUUID()).items().getFirst().id();
+        applications.decide(()->p+"-s0",course,rejected,rejectedKey,"REJECT");
+        UUID pending=applications.apply(()->p+"-s2",course,group,UUID.randomUUID()).items().getFirst().id();
+        UUID sendKey=UUID.randomUUID();var invitation=send(p,a,0,3,0,sendKey);
+        var olderInvitation=send(p,a,0,4,0,UUID.randomUUID());
+        String appCursor=applications.history(()->p+"-s0",course,null,1).nextCursor();
+        String invCursor=invitations.history(()->p+"-s0",course,null,1).nextCursor();
+        assertNotNull(appCursor);assertNotNull(invCursor);
+        var originalApps=jdbc.queryForList("SELECT * FROM application_attempt WHERE activity_id=? ORDER BY id",a.id());
+        var originalInvs=jdbc.queryForList("SELECT * FROM invitation_attempt WHERE activity_id=? ORDER BY id",a.id());
+        jdbc.update("UPDATE activity_group SET manager_account_id=? WHERE id=?",account(p+"-s1"),group);
+        assertEquals(3,applications.history(()->p+"-s1",course,null,null).items().size());
+        assertEquals(2,invitations.history(()->p+"-s1",course,null,null).items().size());
+        assertTrue(applications.history(()->p+"-s0",course,null,null).items().isEmpty());
+        assertTrue(invitations.history(()->p+"-s0",course,null,null).items().isEmpty());
+        assertThrows(CourseNotAccessible.class,()->applications.decide(()->p+"-s0",course,pending,UUID.randomUUID(),"APPROVE"));
+        assertThrows(CourseNotAccessible.class,()->send(p,a,0,5,0,UUID.randomUUID()));
+        assertEquals(originalApps,jdbc.queryForList("SELECT * FROM application_attempt WHERE activity_id=? ORDER BY id",a.id()));
+        assertEquals(originalInvs,jdbc.queryForList("SELECT * FROM invitation_attempt WHERE activity_id=? ORDER BY id",a.id()));
+        applications.decide(()->p+"-s1",course,pending,UUID.randomUUID(),"APPROVE");
+        assertEquals(account(p+"-s0"),jdbc.queryForObject("SELECT manager_account_id FROM application_attempt WHERE id=?",UUID.class,pending));
+        assertEquals(account(p+"-s0"),jdbc.queryForObject("SELECT sender_account_id FROM invitation_attempt WHERE id=?",UUID.class,invitation.id()));
+        jdbc.update("UPDATE grouping_activity SET deadline=clock_timestamp() WHERE id=?",a.id());
+        var appsBefore=jdbc.queryForList("SELECT * FROM application_attempt WHERE activity_id=? ORDER BY id",a.id());
+        var invsBefore=jdbc.queryForList("SELECT * FROM invitation_attempt WHERE activity_id=? ORDER BY id",a.id());
+        assertTrue(applications.history(()->p+"-s0",course,appCursor,1).items().isEmpty());
+        assertTrue(invitations.history(()->p+"-s0",course,invCursor,1).items().isEmpty());
+        assertTrue(applications.decide(()->p+"-s0",course,rejected,rejectedKey,"REJECT").items().isEmpty());
+        assertTrue(invitations.invite(()->p+"-s0",course,group,account(p+"-s3"),sendKey).items().isEmpty());
+        assertEquals(3,applications.history(()->p+"-s1",course,null,null).items().size());
+        assertEquals(2,invitations.history(()->p+"-s1",course,null,null).items().size());
+        assertEquals(invitation.id(),invitations.history(()->p+"-s3",course,null,null).items().getFirst().id());
+        assertEquals(olderInvitation.id(),invitations.history(()->p+"-s4",course,null,null).items().getFirst().id());
+        assertTrue(invitations.history(()->p+"-s2",course,null,null).items().isEmpty());
+        assertTrue(applications.history(()->p+"-s5",course,null,null).items().isEmpty());
+        assertEquals(appsBefore,jdbc.queryForList("SELECT * FROM application_attempt WHERE activity_id=? ORDER BY id",a.id()));
+        assertEquals(invsBefore,jdbc.queryForList("SELECT * FROM invitation_attempt WHERE activity_id=? ORDER BY id",a.id()));
+    }
+    @Test void formerManagerKeepsOnlyOwnApplicantAndRecipientHistory(){
+        String p="v2-own-history";UUID course=setup(p,6);
+        var a=create(p,course,UUID.randomUUID(),new GroupingActivities.CreateActivity("Synthetic",Instant.now().plusSeconds(3600),List.of(4,2))).activity();
+        join(p,a,0,0,UUID.randomUUID());join(p,a,3,1,UUID.randomUUID());UUID group=a.groups().getFirst().id();
+        UUID member=applications.apply(()->p+"-s1",course,group,UUID.randomUUID()).items().getFirst().id();
+        applications.decide(()->p+"-s0",course,member,UUID.randomUUID(),"APPROVE");
+        send(p,a,0,2,0,UUID.randomUUID());
+        jdbc.update("UPDATE activity_group SET manager_account_id=? WHERE id=?",account(p+"-s1"),group);
+        jdbc.update("DELETE FROM activity_membership WHERE activity_id=? AND account_id=?",a.id(),account(p+"-s0"));
+        UUID own=applications.apply(()->p+"-s0",course,a.groups().get(1).id(),UUID.randomUUID()).items().getFirst().id();
+        var received=send(p,a,3,0,1,UUID.randomUUID());
+        jdbc.update("UPDATE grouping_activity SET deadline=clock_timestamp() WHERE id=?",a.id());
+        assertEquals(List.of(own),applications.history(()->p+"-s0",course,null,null).items().stream().map(GroupingApplications.ApplicationAttempt::id).toList());
+        assertEquals(List.of(received.id()),invitations.history(()->p+"-s0",course,null,null).items().stream().map(GroupingInvitations.InvitationAttempt::id).toList());
+        assertThrows(DataIntegrityViolationException.class,()->jdbc.update("DELETE FROM activity_membership WHERE activity_id=? AND account_id=?",a.id(),account(p+"-s1")));
+    }
     @Test void separateRequestsCoexistAndRejectionIsIndependentWithNewRetainedAttempts(){
         String p="inv-history";var a=fixture(p);join(p,a,0,0,UUID.randomUUID());
         var app=applications.apply(()->p+"-s1",a.courseId(),a.groups().getFirst().id(),UUID.randomUUID()).items().getFirst();
@@ -177,11 +238,50 @@ class InvitationIntegrationTest {
     @Test void constraintsProtectPendingPairSameActivitySenderRecipientAndReasons(){
         String p="inv-constraints";var a=fixture(p);join(p,a,0,0,UUID.randomUUID());var x=send(p,a,0,1,0,UUID.randomUUID());
         assertThrows(DataIntegrityViolationException.class,()->jdbc.update("INSERT INTO invitation_attempt(id,activity_id,group_id,recipient_account_id,sender_account_id,status) VALUES (?,?,?,?,?,'PENDING')",UUID.randomUUID(),a.id(),x.groupId(),account(p+"-s1"),account(p+"-s0")));
-        assertThrows(DataIntegrityViolationException.class,()->jdbc.update("UPDATE invitation_attempt SET status='CANCELED',reason=NULL WHERE id=?",x.id()));assertThrows(DataIntegrityViolationException.class,()->jdbc.update("UPDATE invitation_attempt SET reason='Group full' WHERE id=?",x.id()));assertThrows(DataIntegrityViolationException.class,()->jdbc.update("UPDATE invitation_attempt SET sender_account_id=? WHERE id=?",account(p+"-s2"),x.id()));assertThrows(DataIntegrityViolationException.class,()->jdbc.update("UPDATE invitation_attempt SET recipient_account_id=? WHERE id=?",account(p+"-s4"),x.id()));
+        assertThrows(DataIntegrityViolationException.class,()->jdbc.update("UPDATE invitation_attempt SET status='CANCELED',reason=NULL WHERE id=?",x.id()));assertThrows(DataIntegrityViolationException.class,()->jdbc.update("UPDATE invitation_attempt SET reason='Group full' WHERE id=?",x.id()));assertThrows(DataIntegrityViolationException.class,()->jdbc.update("UPDATE invitation_attempt SET sender_account_id=? WHERE id=?",account(p+"-s4"),x.id()));assertThrows(DataIntegrityViolationException.class,()->jdbc.update("UPDATE invitation_attempt SET recipient_account_id=? WHERE id=?",account(p+"-s4"),x.id()));
         var foreign=fixture("inv-foreign");assertThrows(DataIntegrityViolationException.class,()->jdbc.update("UPDATE invitation_attempt SET group_id=? WHERE id=?",foreign.groups().getFirst().id(),x.id()));
     }
-    @Test void v6UpgradePreservesApplicationsMembershipManagerProfilesHistoryAndReceipts(){
+    @Test void populatedV9UpgradePreservesActorsOutcomesAndCurrentManagerIntegrity(){
         String schema="slice7_upgrade";jdbc.execute("CREATE SCHEMA "+schema);
+        var source=new DriverManagerDataSource(POSTGRES.getJdbcUrl(),POSTGRES.getUsername(),POSTGRES.getPassword());
+        Flyway.configure().dataSource(source).defaultSchema(schema).schemas(schema).target("9").load().migrate();
+        var db=new JdbcTemplate(new DriverManagerDataSource(POSTGRES.getJdbcUrl()+(POSTGRES.getJdbcUrl().contains("?")?"&":"?")+"currentSchema="+schema,POSTGRES.getUsername(),POSTGRES.getPassword()));
+        UUID student=UUID.randomUUID(),course=UUID.randomUUID(),activity=UUID.randomUUID(),group=UUID.randomUUID();
+        db.update("INSERT INTO app_account VALUES (?,'preserved-app-student','hash','STUDENT')",student);
+        db.update("INSERT INTO student_identity(account_id,student_id,student_name) VALUES (?,'000陳😀','Preserved')",student);
+        db.update("INSERT INTO course VALUES (?,'UPGRADE7','Preserved')",course);db.update("INSERT INTO course_enrollment VALUES (?,?)",course,student);
+        db.update("INSERT INTO course_introduction VALUES (?,?,'Preserved 😀')",course,student);
+        db.update("INSERT INTO grouping_activity(id,course_id,instructions,deadline) VALUES (?,?,'Instructions',clock_timestamp()+interval '1 hour')",activity,course);
+        db.update("INSERT INTO activity_participant VALUES (?,?)",activity,student);db.update("INSERT INTO activity_group(id,activity_id,ordinal,capacity) VALUES (?,?,1,2)",group,activity);
+        db.update("INSERT INTO activity_membership VALUES (?,?,?)",activity,student,group);db.update("UPDATE activity_group SET manager_account_id=? WHERE id=?",student,group);
+        db.update("INSERT INTO grouping_command_receipt VALUES (?,'JOIN_EMPTY_GROUP',?,'preserved-fingerprint',?)",student,UUID.randomUUID(),activity);
+        UUID recipient=UUID.randomUUID();db.update("INSERT INTO app_account VALUES (?,'preserved-inv-recipient','hash','STUDENT')",recipient);db.update("INSERT INTO student_identity(account_id,student_id,student_name) VALUES (?,'000Recipient','Recipient')",recipient);db.update("INSERT INTO course_enrollment VALUES (?,?)",course,recipient);db.update("INSERT INTO activity_participant VALUES (?,?)",activity,recipient);
+        UUID rejected=UUID.randomUUID();db.update("INSERT INTO application_attempt(id,activity_id,group_id,applicant_account_id,manager_account_id,status) VALUES (?,?,?,?,?,'REJECTED')",rejected,activity,group,recipient,student);db.update("INSERT INTO application_attempt(id,activity_id,group_id,applicant_account_id,manager_account_id,status) VALUES (?,?,?,?,?,'PENDING')",UUID.randomUUID(),activity,group,recipient,student);
+        UUID invitation=UUID.randomUUID();
+        db.update("INSERT INTO invitation_attempt(id,activity_id,group_id,recipient_account_id,sender_account_id,status) VALUES (?,?,?,?,?,'REJECTED')",invitation,activity,group,recipient,student);
+        db.update("INSERT INTO invitation_attempt(id,activity_id,group_id,recipient_account_id,sender_account_id,status) VALUES (?,?,?,?,?,'PENDING')",UUID.randomUUID(),activity,group,recipient,student);
+        var tables=List.of("application_attempt","invitation_attempt","app_account","student_identity","course","course_enrollment","course_introduction","activity_participant","activity_group","activity_membership","grouping_command_receipt");
+        var before=new HashMap<String,List<Map<String,Object>>>();for(String table:tables)before.put(table,db.queryForList("SELECT * FROM "+table));
+        var activityBefore=db.queryForList("SELECT id,course_id,instructions,deadline FROM grouping_activity");
+        Flyway.configure().dataSource(source).defaultSchema(schema).schemas(schema).load().migrate();
+        for(String table:tables)assertEquals(before.get(table),db.queryForList("SELECT * FROM "+table));
+        assertEquals(activityBefore,db.queryForList("SELECT id,course_id,instructions,deadline FROM grouping_activity"));
+        for(var row:db.queryForList("SELECT finalized_at FROM grouping_activity"))assertNull(row.get("finalized_at"));
+        assertEquals(10,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
+        assertEquals("10",db.queryForObject("SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank DESC LIMIT 1",String.class));
+        assertThrows(DataIntegrityViolationException.class,()->db.update("DELETE FROM activity_membership WHERE activity_id=? AND account_id=?",activity,student));
+        db.update("UPDATE activity_group SET manager_account_id=NULL WHERE id=?",group);
+        assertEquals(1,db.update("DELETE FROM activity_membership WHERE activity_id=? AND account_id=?",activity,student));
+        for(String table:List.of("application_attempt","invitation_attempt")){
+            assertEquals(before.get(table),db.queryForList("SELECT * FROM "+table));
+            db.update("UPDATE "+table+" SET status='CANCELED',reason='Group empty' WHERE status='PENDING'");
+            assertEquals(1,db.queryForObject("SELECT count(*) FROM "+table+" WHERE reason='Group empty'",Integer.class));
+            assertThrows(DataIntegrityViolationException.class,()->db.update("UPDATE "+table+" SET reason='Other' WHERE status='CANCELED'"));
+        }
+        assertThrows(DataIntegrityViolationException.class,()->db.update("DELETE FROM activity_participant WHERE activity_id=? AND account_id=?",activity,student));
+    }
+    @Test void v6UpgradePreservesApplicationsMembershipManagerProfilesHistoryAndReceipts(){
+        String schema="slice7_upgrade_legacy";jdbc.execute("CREATE SCHEMA "+schema);
         var source=new DriverManagerDataSource(POSTGRES.getJdbcUrl(),POSTGRES.getUsername(),POSTGRES.getPassword());
         Flyway.configure().dataSource(source).defaultSchema(schema).schemas(schema).target("6").load().migrate();
         var db=new JdbcTemplate(new DriverManagerDataSource(POSTGRES.getJdbcUrl()+(POSTGRES.getJdbcUrl().contains("?")?"&":"?")+"currentSchema="+schema,POSTGRES.getUsername(),POSTGRES.getPassword()));
@@ -203,6 +303,6 @@ class InvitationIntegrationTest {
         for(String table:tables)assertEquals(before.get(table),db.queryForList("SELECT * FROM "+table));
         assertEquals(activityBefore,db.queryForList("SELECT id,course_id,instructions,deadline FROM grouping_activity"));
         for(var row:db.queryForList("SELECT finalized_at FROM grouping_activity"))assertNull(row.get("finalized_at"));
-        assertEquals(0,db.queryForObject("SELECT count(*) FROM invitation_attempt",Integer.class));assertEquals(9,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
+        assertEquals(0,db.queryForObject("SELECT count(*) FROM invitation_attempt",Integer.class));assertEquals(10,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
     }
 }

@@ -179,7 +179,7 @@ class ApplicationIntegrationTest {
         assertThrows(DataIntegrityViolationException.class,()->jdbc.update("INSERT INTO application_attempt(id,activity_id,group_id,applicant_account_id,manager_account_id,status) VALUES (?,?,?,?,?,'PENDING')",UUID.randomUUID(),a.id(),x.groupId(),account(p+"-s1"),account(p+"-s0")));
         assertThrows(DataIntegrityViolationException.class,()->jdbc.update("UPDATE application_attempt SET status='CANCELED',reason=NULL WHERE id=?",x.id()));
         assertThrows(DataIntegrityViolationException.class,()->jdbc.update("UPDATE application_attempt SET reason='Group full' WHERE id=?",x.id()));
-        assertThrows(DataIntegrityViolationException.class,()->jdbc.update("UPDATE application_attempt SET manager_account_id=? WHERE id=?",account(p+"-s2"),x.id()));
+        assertThrows(DataIntegrityViolationException.class,()->jdbc.update("UPDATE application_attempt SET manager_account_id=? WHERE id=?",account(p+"-s4"),x.id()));
         assertThrows(DataIntegrityViolationException.class,()->jdbc.update("UPDATE application_attempt SET applicant_account_id=? WHERE id=?",account(p+"-s4"),x.id()));
         var foreign=fixture("app-foreign");join("app-foreign",foreign,0,0,UUID.randomUUID());
         assertThrows(DataIntegrityViolationException.class,()->jdbc.update("UPDATE application_attempt SET group_id=? WHERE id=?",foreign.groups().getFirst().id(),x.id()));
@@ -206,6 +206,6 @@ class ApplicationIntegrationTest {
         for(String table:tables)assertEquals(before.get(table),db.queryForList("SELECT * FROM "+table));
         assertEquals(activityBefore,db.queryForList("SELECT id,course_id,instructions,deadline FROM grouping_activity"));
         for(var row:db.queryForList("SELECT finalized_at FROM grouping_activity"))assertNull(row.get("finalized_at"));
-        assertEquals(0,db.queryForObject("SELECT count(*) FROM application_attempt",Integer.class));assertEquals(9,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
+        assertEquals(0,db.queryForObject("SELECT count(*) FROM application_attempt",Integer.class));assertEquals(10,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
     }
 }

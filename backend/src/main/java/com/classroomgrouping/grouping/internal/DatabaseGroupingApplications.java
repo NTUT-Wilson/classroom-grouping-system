@@ -74,7 +74,7 @@ class DatabaseGroupingApplications implements GroupingApplications {
         if(attempts.isEmpty())throw new CourseNotAccessible();
         Attempt attempt=attempts.getFirst();
         UUID manager=jdbc.queryForObject("SELECT manager_account_id FROM activity_group WHERE activity_id=? AND id=?",UUID.class,activity.id(),attempt.groupId());
-        if(!actor.equals(attempt.manager())||!actor.equals(manager))throw new CourseNotAccessible();
+        if(!actor.equals(manager))throw new CourseNotAccessible();
         if(!"PENDING".equals(attempt.status()))throw new GroupingConflict("APPLICATION_NOT_PENDING");
         joining.requireOpen(activity.deadline());
         if("APPROVE".equals(decision)){
@@ -106,7 +106,7 @@ class DatabaseGroupingApplications implements GroupingApplications {
         String anchor="";
         if(after!=null){anchor=" AND (a.created_at,a.id)<(?,?)";args.add(Timestamp.from(after.createdAt()));args.add(after.id());}
         args.add(size+1);
-        var rows=jdbc.query("SELECT a.*,g.ordinal FROM application_attempt a JOIN activity_group g ON g.activity_id=a.activity_id AND g.id=a.group_id WHERE a.activity_id=? AND (a.applicant_account_id=? OR a.manager_account_id=?)"+anchor+" ORDER BY a.created_at DESC,a.id DESC LIMIT ?",this::attempt,args.toArray());
+        var rows=jdbc.query("SELECT a.*,g.ordinal FROM application_attempt a JOIN activity_group g ON g.activity_id=a.activity_id AND g.id=a.group_id WHERE a.activity_id=? AND (a.applicant_account_id=? OR g.manager_account_id=?)"+anchor+" ORDER BY a.created_at DESC,a.id DESC LIMIT ?",this::attempt,args.toArray());
         boolean more=rows.size()>size;
         if(more)rows=rows.subList(0,size);
         var ids=rows.stream().flatMap(a->java.util.stream.Stream.of(a.applicant(),a.manager())).distinct().toList();

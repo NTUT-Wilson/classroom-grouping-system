@@ -109,7 +109,7 @@ class DatabaseGroupingInvitations implements GroupingInvitations {
         String anchor="";
         if(after!=null){anchor=" AND (a.created_at,a.id)<(?,?)";args.add(Timestamp.from(after.createdAt()));args.add(after.id());}
         args.add(size+1);
-        var rows=jdbc.query("SELECT a.*,g.ordinal FROM invitation_attempt a JOIN activity_group g ON g.activity_id=a.activity_id AND g.id=a.group_id WHERE a.activity_id=? AND (a.recipient_account_id=? OR a.sender_account_id=?)"+anchor+" ORDER BY a.created_at DESC,a.id DESC LIMIT ?",this::attempt,args.toArray());
+        var rows=jdbc.query("SELECT a.*,g.ordinal FROM invitation_attempt a JOIN activity_group g ON g.activity_id=a.activity_id AND g.id=a.group_id WHERE a.activity_id=? AND (a.recipient_account_id=? OR g.manager_account_id=?)"+anchor+" ORDER BY a.created_at DESC,a.id DESC LIMIT ?",this::attempt,args.toArray());
         boolean more=rows.size()>size;
         if(more)rows=rows.subList(0,size);
         var ids=rows.stream().flatMap(a->java.util.stream.Stream.of(a.recipient(),a.sender())).distinct().toList();
