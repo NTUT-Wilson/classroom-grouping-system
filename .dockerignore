@@ -8,3 +8,4 @@ frontend/playwright-report
 .env
 .env.*
 repomix-output.md
+p.txt

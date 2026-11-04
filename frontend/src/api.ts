@@ -182,3 +182,44 @@ export async function getRosterCsv(id: string): Promise<{ blob: Blob; filename: 
   if (!blob.size) throw new Error('Empty CSV response')
   return { blob, filename }
 }
+
+export type Announcement = { id: string; courseId: string; title: string; body: string; publishedAt: string; updatedAt: string; revision: number }
+export type AnnouncementPage = { items: Announcement[]; nextCursor: string | null }
+export type AnnouncementAcknowledgement = { id: string; revision: number; deleted: boolean }
+export type AnnouncementCommand = { command: 'CREATE' | 'EDIT' | 'DELETE'; commandKey: string; id?: string; expectedRevision?: number; title?: string; body?: string }
+export function listAnnouncements(courseId: string, cursor?: string): Promise<AnnouncementPage> {
+  return readCourse(`/api/courses/${encodeURIComponent(courseId)}/announcements?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`)
+}
+export function getAnnouncement(courseId: string, id: string): Promise<Announcement> {
+  return readCourse(`/api/courses/${encodeURIComponent(courseId)}/announcements/${encodeURIComponent(id)}`)
+}
+function validAnnouncementAcknowledgement(value: unknown): value is AnnouncementAcknowledgement {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as Partial<AnnouncementAcknowledgement>
+  return typeof candidate.id === 'string' && candidate.id.length > 0 && Number.isSafeInteger(candidate.revision) && candidate.revision! > 0 && typeof candidate.deleted === 'boolean'
+}
+export async function getAnnouncementCommand(courseId: string, attempt: AnnouncementCommand): Promise<{ committed: boolean; acknowledgement: AnnouncementAcknowledgement | null }> {
+  const status = await readCourse<{ committed?: unknown; acknowledgement?: unknown }>(`/api/courses/${encodeURIComponent(courseId)}/announcement-commands/${encodeURIComponent(attempt.commandKey)}?command=${attempt.command}`)
+  if (!status || typeof status.committed !== 'boolean' || (status.committed ? !validAnnouncementAcknowledgement(status.acknowledgement) : status.acknowledgement !== null)) throw new Error('The command receipt could not be confirmed.')
+  return status as { committed: boolean; acknowledgement: AnnouncementAcknowledgement | null }
+}
+export async function sendAnnouncementCommand(courseId: string, attempt: AnnouncementCommand): Promise<AnnouncementAcknowledgement> {
+  if (!token) await refreshCsrf()
+  const csrf = token!
+  token = undefined
+  const { command, id, ...body } = attempt
+  const response = await fetch(`/api/courses/${encodeURIComponent(courseId)}/announcements${id ? `/${encodeURIComponent(id)}` : ''}${command === 'DELETE' ? '/delete' : ''}`, {
+    method: command === 'EDIT' ? 'PUT' : 'POST', credentials: 'same-origin', headers: { [csrf.headerName]: csrf.token, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null) as { code?: unknown } | null
+    const code = typeof problem?.code === 'string' ? problem.code : undefined
+    throw new ApiError(response.status, code === 'INVALID_ANNOUNCEMENT' ? 'Enter a nonblank title of at most 150 characters and body of at most 10,000 characters, using valid plain text.'
+      : code === 'ANNOUNCEMENT_REVISION_CONFLICT' ? 'This announcement changed. Reload the current announcement and review your preserved draft.'
+        : code === 'COMMAND_KEY_REUSED' ? 'This command key was already used for another request. Check its receipt before continuing.'
+          : 'The announcement request could not be confirmed.', code)
+  }
+  const acknowledgement: unknown = await response.json()
+  if (!validAnnouncementAcknowledgement(acknowledgement) || (id && acknowledgement.id !== id) || acknowledgement.deleted !== (command === 'DELETE')) throw new Error('The announcement acknowledgement could not be confirmed.')
+  return acknowledgement as AnnouncementAcknowledgement
+}

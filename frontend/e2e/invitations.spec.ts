@@ -104,7 +104,10 @@ test('private invitations coexist with applications, retain rejection history, a
     const sendPath = `/api/courses/${course}/groups/${groups[0]!.id}/invitations`
     let sendPosts = 0
     await m1.route(`**${sendPath}`, async route => { sendPosts++; const response = await route.fetch(); expect(response.status()).toBe(200); await route.abort('failed') })
+    // The assertion starts after the browser observes the deliberately lost committed response.
+    const sendFailed = m1.waitForEvent('requestfailed', request => request.method() === 'POST' && request.url().endsWith(sendPath))
     await invite(m1, 'Sam Batch 三', true)
+    await sendFailed
     await expect(m1.getByRole('alert')).toContainText('could not be confirmed')
     await open(m1, course); await m1.reload(); expect(sendPosts).toBe(1)
     await m1.unroute(`**${sendPath}`)
@@ -127,8 +130,10 @@ test('private invitations coexist with applications, retain rejection history, a
     const acceptPath = `/api/courses/${course}/invitations/${accepted.id}/decision`
     let acceptPosts = 0
     await recipient.route(`**${acceptPath}`, async route => { acceptPosts++; const response = await route.fetch(); expect(response.status()).toBe(200); await route.abort('failed') })
+    const acceptFailed = recipient.waitForEvent('requestfailed', request => request.method() === 'POST' && request.url().endsWith(acceptPath))
     await invitation(recipient, 'Sam Batch 三').getByRole('button', { name: 'Accept invitation', exact: true }).click()
     await recipient.getByRole('button', { name: 'Confirm acceptance', exact: true }).click()
+    await acceptFailed
     await expect(recipient.getByRole('alert')).toContainText('could not be confirmed')
     await open(recipient, course); await recipient.reload(); expect(acceptPosts).toBe(1)
     expect((await history(recipient, course)).items.find(item => item.id === accepted.id)!.status).toBe('ACCEPTED')

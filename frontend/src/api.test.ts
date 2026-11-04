@@ -268,3 +268,40 @@ test.each([{ headers: { ...csvHeaders, 'Content-Disposition': 'attachment; filen
   const { getRosterCsv } = await import('./api')
   await expect(getRosterCsv('course')).rejects.toThrow(/CSV response/)
 })
+
+test('announcement mutation consumes CSRF and never replays an uncertain response', async () => {
+  const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'one' })))
+    .mockRejectedValueOnce(new TypeError('lost')).mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'two' })))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ id: 'notice', revision: 1, deleted: false })))
+  vi.stubGlobal('fetch', fetchMock)
+  const { sendAnnouncementCommand } = await import('./api')
+  const command = { command: 'CREATE' as const, commandKey: 'key', title: ' Title ', body: 'Body' }
+  await expect(sendAnnouncementCommand('course', command)).rejects.toThrow('lost')
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  await sendAnnouncementCommand('course', command)
+  expect(fetchMock.mock.calls[3][1]).toMatchObject({ method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': 'two' }, body: JSON.stringify({ commandKey: 'key', title: ' Title ', body: 'Body' }) })
+})
+test('announcement conflict is exposed without CSRF replay and protected reads are uncached', async () => {
+  const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'one' })))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ code: 'ANNOUNCEMENT_REVISION_CONFLICT' }), { status: 409 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ committed: false, acknowledgement: null })))
+  vi.stubGlobal('fetch', fetchMock)
+  const { sendAnnouncementCommand, getAnnouncementCommand } = await import('./api')
+  const command = { command: 'DELETE' as const, id: 'notice', commandKey: 'key', expectedRevision: 1 }
+  await expect(sendAnnouncementCommand('course', command)).rejects.toMatchObject({ status: 409, code: 'ANNOUNCEMENT_REVISION_CONFLICT' })
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  await getAnnouncementCommand('course', command)
+  expect(fetchMock.mock.calls[2]).toEqual(['/api/courses/course/announcement-commands/key?command=DELETE', { credentials: 'same-origin', cache: 'no-store' }])
+})
+
+test('malformed announcement successful acknowledgements and receipts remain unconfirmed', async () => {
+  const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ headerName: 'X-CSRF-TOKEN', token: 'one' })))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ id: 'notice', revision: 0, deleted: false })))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ committed: true, acknowledgement: { id: 'notice', revision: 0, deleted: false } })))
+  vi.stubGlobal('fetch', fetchMock)
+  const { sendAnnouncementCommand, getAnnouncementCommand } = await import('./api')
+  const command = { command: 'CREATE' as const, commandKey: 'key', title: 'Title', body: 'Body' }
+  await expect(sendAnnouncementCommand('course', command)).rejects.toThrow('could not be confirmed')
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  await expect(getAnnouncementCommand('course', command)).rejects.toThrow('receipt could not be confirmed')
+})

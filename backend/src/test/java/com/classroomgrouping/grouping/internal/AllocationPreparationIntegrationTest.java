@@ -450,7 +450,7 @@ class AllocationPreparationIntegrationTest {
         assertEquals(workBefore,db.queryForList("SELECT activity_id,state,attempts,retry_at,failure_class FROM allocation_work"));
         assertEquals("ASSIGNMENT",db.queryForObject("SELECT stage FROM allocation_work",String.class));
         assertNull(db.queryForObject("SELECT finalized_at FROM grouping_activity",java.time.OffsetDateTime.class));
-        assertEquals(10,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
+        assertEquals(11,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
         assertThrows(DataIntegrityViolationException.class,()->db.update("UPDATE allocation_plan SET placement_count=0 WHERE activity_id=?",activity));
         assertThrows(DataIntegrityViolationException.class,()->db.update("UPDATE allocation_placement SET group_id=? WHERE activity_id=?",secondGroup,activity));
     }

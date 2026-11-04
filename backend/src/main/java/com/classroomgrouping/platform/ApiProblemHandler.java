@@ -1,15 +1,21 @@
 package com.classroomgrouping.platform;
 
 import com.classroomgrouping.courses.api.CourseNotAccessible;
+import com.classroomgrouping.courses.api.AnnouncementValidationException;
+import com.classroomgrouping.courses.api.AnnouncementConflict;
+import com.classroomgrouping.courses.api.AnnouncementNotAvailable;
 import com.classroomgrouping.courses.api.ProfileValidationException;
 import com.classroomgrouping.grouping.api.ActivityConflict;
 import com.classroomgrouping.grouping.api.ActivityValidationException;
 import com.classroomgrouping.grouping.api.GroupingConflict;
 import com.classroomgrouping.grouping.api.GroupingValidationException;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.Map;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -17,9 +23,25 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import tools.jackson.databind.ObjectMapper;
 
 @RestControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)
 class ApiProblemHandler {
     private final ObjectMapper mapper;
     ApiProblemHandler(ObjectMapper mapper) { this.mapper = mapper; }
+
+    @ExceptionHandler(AnnouncementValidationException.class)
+    void invalidAnnouncement(AnnouncementValidationException exception, HttpServletResponse response) throws IOException {
+        response.setStatus(400); response.setContentType("application/problem+json"); response.setHeader("Cache-Control", "no-store");
+        response.getWriter().write(mapper.writeValueAsString(Map.of("type", "about:blank", "status", 400,
+                "title", "Invalid announcement", "code", "INVALID_ANNOUNCEMENT", "fieldErrors", Map.of(exception.field(), "Enter valid announcement input."))));
+    }
+    @ExceptionHandler(AnnouncementConflict.class)
+    void announcementConflict(AnnouncementConflict exception, HttpServletResponse response) throws IOException {
+        ProblemResponses.write(response, 409, "Announcement conflict", exception.code());
+    }
+    @ExceptionHandler(AnnouncementNotAvailable.class)
+    void announcementUnavailable(HttpServletResponse response) throws IOException {
+        ProblemResponses.write(response, 404, "Announcement not available", "ANNOUNCEMENT_NOT_AVAILABLE");
+    }
 
     @ExceptionHandler(GroupingValidationException.class)
     void invalidGrouping(GroupingValidationException exception, HttpServletResponse response) throws IOException {
@@ -68,9 +90,10 @@ class ApiProblemHandler {
                 + ProfileValidationException.MESSAGE + "\"}}");
     }
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    void invalidBody(HttpMessageNotReadableException exception, HttpServletResponse response) throws IOException {
+    void invalidBody(HttpMessageNotReadableException exception, HttpServletResponse response, HttpServletRequest request) throws IOException {
         Throwable cause = exception.getCause();
         for (int depth = 0; cause != null && depth < 8; depth++, cause = cause.getCause()) {
+            if (cause instanceof AnnouncementValidationException validation) { invalidAnnouncement(validation, response); return; }
             if (cause instanceof ActivityValidationException validation) {
                 invalidActivity(validation, response);
                 return;
@@ -79,6 +102,9 @@ class ApiProblemHandler {
                 invalidGrouping(validation, response);
                 return;
             }
+        }
+        if (request.getRequestURI().matches("/api/courses/[^/]+/announcements(?:/[^/]+(?:/delete)?)?")) {
+            invalidAnnouncement(new AnnouncementValidationException("fields"), response); return;
         }
         ProblemResponses.write(response, 400, "Invalid request body", "INVALID_REQUEST");
     }
