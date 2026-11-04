@@ -1,5 +1,7 @@
 # V2 Batch 2 — owner acceptance and PR finalization
 
+**Subsequent integration — 2026-10-30:** PR [#5](https://github.com/NTUT-Wilson/classroom-grouping-system/pull/5) merged as `f1abb9c`, followed by retargeted PR [#6](https://github.com/NTUT-Wilson/classroom-grouping-system/pull/6) as `a810706`, the inspected current `main`. The owner supplied passing post-merge [CI run 41018460103](https://github.com/NTUT-Wilson/classroom-grouping-system/actions/runs/41018460103): frontend186/build, backend192 with zero failures/errors/skips, complete jar25/image25 Chromium, runtime/security and cleanup. These are Batch 2 baseline results. The pending-integration language below records the earlier finalization checkpoint. Batch 3 announcements/core acceptance were separately authorized on October 30; [current evidence](v2-batch-3.md) must establish their own verification. Deployment and hosted gates remain separate.
+
 ## Owner acceptance — 2026-10-29 (Asia/Taipei)
 
 The owner reported **manual acceptance of V2 Batch 2 complete** for V2-1a, V2-1b and V2-2, then authorized recording evidence, updating progress, preserving the working tree and creating the two planned commits/branches/PRs. No additional manual observations are inferred from that confirmation. The 2026-10-23 automated/browser/image/review evidence remains [dated historical evidence](v2-batch-2.md).
