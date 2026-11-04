@@ -267,8 +267,8 @@ class InvitationIntegrationTest {
         for(String table:tables)assertEquals(before.get(table),db.queryForList("SELECT * FROM "+table));
         assertEquals(activityBefore,db.queryForList("SELECT id,course_id,instructions,deadline FROM grouping_activity"));
         for(var row:db.queryForList("SELECT finalized_at FROM grouping_activity"))assertNull(row.get("finalized_at"));
-        assertEquals(10,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
-        assertEquals("10",db.queryForObject("SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank DESC LIMIT 1",String.class));
+        assertEquals(11,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
+        assertEquals("11",db.queryForObject("SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank DESC LIMIT 1",String.class));
         assertThrows(DataIntegrityViolationException.class,()->db.update("DELETE FROM activity_membership WHERE activity_id=? AND account_id=?",activity,student));
         db.update("UPDATE activity_group SET manager_account_id=NULL WHERE id=?",group);
         assertEquals(1,db.update("DELETE FROM activity_membership WHERE activity_id=? AND account_id=?",activity,student));
@@ -303,6 +303,6 @@ class InvitationIntegrationTest {
         for(String table:tables)assertEquals(before.get(table),db.queryForList("SELECT * FROM "+table));
         assertEquals(activityBefore,db.queryForList("SELECT id,course_id,instructions,deadline FROM grouping_activity"));
         for(var row:db.queryForList("SELECT finalized_at FROM grouping_activity"))assertNull(row.get("finalized_at"));
-        assertEquals(0,db.queryForObject("SELECT count(*) FROM invitation_attempt",Integer.class));assertEquals(10,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
+        assertEquals(0,db.queryForObject("SELECT count(*) FROM invitation_attempt",Integer.class));assertEquals(11,db.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Integer.class));
     }
 }

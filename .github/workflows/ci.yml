@@ -58,6 +58,10 @@ jobs:
           DATABASE_PASSWORD: ci-only-password
           DEMO_USERNAME: ci-demo
           DEMO_PASSWORD: ci-only-foundation-password
+          E2E_ANNOUNCEMENT_DATABASE_URL: postgresql://classroom_local@127.0.0.1:5432/classroom_grouping
+          E2E_PGPASSWORD: ci-only-password
+          E2E_PSQL_PATH: psql
+          E2E_ANNOUNCEMENT_DISPOSABLE: 'true'
         run: |
           java -jar backend/target/classroom-grouping-0.0.1-SNAPSHOT.jar --spring.profiles.active=local --app.demo.enabled=true --app.roster.enabled=true --app.batch-fixture.enabled=true > backend/target/browser-backend.log 2>&1 &
           APP_PID=$!
@@ -74,6 +78,10 @@ jobs:
           DEMO_USERNAME: ci-demo
           DEMO_PASSWORD: ci-only-foundation-password
           E2E_BASE_URL: http://127.0.0.1:8081
+          E2E_ANNOUNCEMENT_DATABASE_URL: postgresql://classroom_local@127.0.0.1:5432/classroom_grouping_image
+          E2E_PGPASSWORD: ci-only-password
+          E2E_PSQL_PATH: psql
+          E2E_ANNOUNCEMENT_DISPOSABLE: 'true'
         run: |
           docker build --tag classroom-grouping:ci .
           # Browser creation stories require a fresh disposable database for each artifact.

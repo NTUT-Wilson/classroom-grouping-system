@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { App } from './App'
 import * as api from './api'
-vi.mock('./api', async importOriginal => ({ ...await importOriginal<typeof api>(), initializeSession: vi.fn(), signIn: vi.fn(), signOut: vi.fn(), listCourses: vi.fn(), getCourse: vi.fn(), getResults: vi.fn() }))
+vi.mock('./api', async importOriginal => ({ ...await importOriginal<typeof api>(), initializeSession: vi.fn(), signIn: vi.fn(), signOut: vi.fn(), listCourses: vi.fn(), getCourse: vi.fn(), getResults: vi.fn(), listAnnouncements: vi.fn(), getAnnouncement: vi.fn() }))
 const teacher: api.Session = { accountId: 'teacher', username: 'demo', role: 'TEACHER' }
 const course: api.Course = { id: '11111111-1111-1111-1111-111111111111', code: 'CS101', name: 'Computing' }
 beforeEach(() => {
@@ -11,6 +11,8 @@ beforeEach(() => {
   vi.mocked(api.initializeSession).mockResolvedValue(null)
   vi.mocked(api.listCourses).mockResolvedValue([course])
   vi.mocked(api.getCourse).mockResolvedValue(course)
+  vi.mocked(api.listAnnouncements).mockResolvedValue({ items: [], nextCursor: null })
+  vi.mocked(api.getAnnouncement).mockResolvedValue({ id: 'notice', courseId: course.id, title: 'Update', body: 'Current update', publishedAt: '2026-01-01T17:00:00Z', updatedAt: '2026-01-01T17:00:00Z', revision: 1 })
 })
 async function login(user: ReturnType<typeof userEvent.setup>) {
   await user.type(await screen.findByLabelText('Username'), 'demo')
@@ -172,4 +174,14 @@ test('student direct teacher roster route does not request results', async () =>
   render(<App />)
   expect(await screen.findByRole('heading', { name: 'Results unavailable' })).toBeInTheDocument()
   expect(api.getResults).not.toHaveBeenCalled()
+})
+
+for (const role of ['TEACHER', 'STUDENT'] as const) test(`${role} announcement deep link activates only announcement navigation`, async () => {
+  window.location.hash = `#/courses/${course.id}/announcements/22222222-2222-2222-2222-222222222222`
+  vi.mocked(api.initializeSession).mockResolvedValue({ ...teacher, role })
+  render(<App />)
+  await screen.findByRole('heading', { name: 'Announcements' })
+  expect(screen.getByRole('link', { name: 'Announcements' })).toHaveAttribute('aria-current', 'page')
+  expect(screen.getByRole('link', { name: role === 'TEACHER' ? 'Activity' : 'Overview' })).not.toHaveAttribute('aria-current')
+  expect(screen.queryByText('Course details')).not.toBeInTheDocument()
 })
