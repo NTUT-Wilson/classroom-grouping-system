@@ -1,5 +1,7 @@
 # V2 Batch 3 — announcements and core acceptance
 
+**Owner acceptance and integration — 2026-11-05 (Asia/Taipei):** The owner explicitly accepts Batch 3 as having passed manual acceptance. This records the owner's decision; no separate hands-on observations were supplied in this checkpoint. PR [#7](https://github.com/NTUT-Wilson/classroom-grouping-system/pull/7) merged into `main` as `ff1c372` on 2026-11-05 at 01:14 Asia/Taipei. The [PR workflow](https://github.com/NTUT-Wilson/classroom-grouping-system/actions/runs/41873585460) and [post-merge main workflow](https://github.com/NTUT-Wilson/classroom-grouping-system/actions/runs/41875602104) both completed successfully for their respective heads. Earlier proposal, pending-acceptance and NOT RUN wording below describes its dated checkpoint. V2-5 and later, hosted operational validation, backups and deployment remain separate.
+
 ## Scope and current status — 2026-11-05
 
 The owner authorized local V2-3a, V2-3b and V2-4 implementation, verification and independent review. Work starts from merged Batch 2 `main` at `a810706`. The owner-supplied post-merge CI run [41018460103](https://github.com/NTUT-Wilson/classroom-grouping-system/actions/runs/41018460103) is baseline evidence, not verification of Batch 3. No branch push, PR, merge, deployment, provider call or Assistant implementation is authorized here.
